@@ -1,0 +1,13 @@
+data/
+.playwright-mcp/
+node_modules/
+www/
+.wrangler/
+android/local.properties
+android/build/
+android/app/build/
+android/.gradle/
+android/capacitor-cordova-android-plugins/build/
+store-preview/variants/
+store-preview/sheet.html
+dist/

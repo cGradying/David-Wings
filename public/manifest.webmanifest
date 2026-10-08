@@ -1,0 +1,16 @@
+{
+  "name": "David Wings Ledger",
+  "short_name": "Wings Ledger",
+  "description": "Offline cashier ledger for David's Wings and Cafe",
+  "start_url": "/",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#fbf3e6",
+  "theme_color": "#d9480f",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

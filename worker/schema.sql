@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS menu_items ( id INTEGER PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL, price INTEGER NOT NULL CHECK (price >= 0), flavored INTEGER NOT NULL DEFAULT 0, available INTEGER NOT NULL DEFAULT 1, sort INTEGER NOT NULL DEFAULT 0 );
+CREATE TABLE IF NOT EXISTS orders ( id INTEGER PRIMARY KEY, uid TEXT NOT NULL UNIQUE, day TEXT NOT NULL, ref INTEGER NOT NULL, card INTEGER NOT NULL, type TEXT NOT NULL CHECK (type IN ('dine-in','take-out')), status TEXT NOT NULL CHECK (status IN ('preparing','done','void')), total INTEGER NOT NULL, method TEXT NOT NULL CHECK (method IN ('cash','gcash')), tendered INTEGER NOT NULL, change INTEGER NOT NULL, gcash_ref TEXT, void_reason TEXT, created_at INTEGER NOT NULL, done_at INTEGER, UNIQUE (day, ref) );
+CREATE UNIQUE INDEX IF NOT EXISTS one_open_order_per_card ON orders(card) WHERE status = 'preparing';
+CREATE INDEX IF NOT EXISTS orders_day ON orders(day);
+CREATE TABLE IF NOT EXISTS order_items ( id INTEGER PRIMARY KEY, order_id INTEGER NOT NULL REFERENCES orders(id), item_id INTEGER NOT NULL, name TEXT NOT NULL, category TEXT NOT NULL, flavor TEXT, qty INTEGER NOT NULL CHECK (qty > 0), price INTEGER NOT NULL );
+CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS day_close ( day TEXT PRIMARY KEY, float INTEGER NOT NULL DEFAULT 0, counted INTEGER, closed_at INTEGER, amended INTEGER NOT NULL DEFAULT 0 );

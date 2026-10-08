@@ -1,0 +1,7 @@
+{
+  "appId": "ph.davidwings.ledger",
+  "appName": "David Wings Ledger",
+  "webDir": "www",
+  "android": { "allowMixedContent": false },
+  "plugins": { "CapacitorSQLite": { "androidIsEncryption": false } }
+}
