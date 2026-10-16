@@ -11,3 +11,5 @@ android/capacitor-cordova-android-plugins/build/
 store-preview/variants/
 store-preview/sheet.html
 dist/
+.DS_Store
+**/.DS_Store

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { cardState, closeOrder, createOrder, ledger, localDay, migrate, saveClose, stats } from './core/core.js';
 import { handleApi } from './core/routes.js';
-import { seed } from './core/seed.js';
+import { clearSample, loadSample, seed } from './core/seed.js';
 import { nodeAdapter } from './adapters/node.js';
 
 const db = nodeAdapter(':memory:');
@@ -74,4 +74,24 @@ assert.equal((await ledger(db2, today)).summary.count, (await ledger(db, today))
 const r = await handleApi(db, 'GET', '/api/ledger', new URLSearchParams(), {});
 assert.equal(r.status, 200);
 assert.equal((await handleApi(db, 'POST', '/api/orders', new URLSearchParams(), { ...base, card: 99 })).status, 400);
+
+// Sample data: clean install is empty; sample is tagged, removable, and never touches real orders.
+const dbS = nodeAdapter(':memory:'); await migrate(dbS); await seed(dbS);
+const nS = async () => (await dbS.get('SELECT COUNT(*) AS n FROM orders')).n;
+assert.equal(await nS(), 0, 'fresh install has no orders');
+const real = await createOrder(dbS, { ...base, card: 1 });
+assert.equal((await handleApi(dbS, 'GET', '/api/sample', new URLSearchParams(), {})).body.count, 0);
+const ls = await loadSample(dbS);
+assert.ok(ls.count > 50 && (await nS()) === ls.count + 1, 'sample added');
+assert.equal((await dbS.get("SELECT COUNT(*) AS n FROM orders WHERE uid NOT LIKE 'demo-%'")).n, 1, 'only real order untagged');
+assert.ok((await stats(dbS, 7)).cur.sales > 0, 'stats over sample');
+await assert.rejects(loadSample(dbS), (e) => e.status === 409);
+assert.equal((await handleApi(dbS, 'POST', '/api/sample', new URLSearchParams(), {})).status, 409);
+assert.equal((await clearSample(dbS)).removed, ls.count);
+assert.equal(await nS(), 1, 'real order survives');
+assert.equal((await dbS.get('SELECT COUNT(*) AS n FROM order_items')).n, 2, 'real items survive');
+assert.equal((await dbS.get('SELECT id FROM orders')).id, real.id);
+assert.equal((await handleApi(dbS, 'DELETE', '/api/sample', new URLSearchParams(), {})).body.removed, 0);
+const st = await (await import('./core/core.js')).saveSettings(dbS, { onboarded: '1', hint_swipe: '1' });
+assert.ok(st.onboarded === '1' && st.hint_swipe === '1');
 console.log('ok');

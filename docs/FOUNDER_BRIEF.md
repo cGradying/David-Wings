@@ -39,6 +39,7 @@ Menu drinks are 16oz at 25 and 22oz at 30. Use these figures in the demo.
 
 Before the meeting: install the APK, make sure the opening float is blank for today, and have Honey Barbeque and Garlic Parmesan ready to show as best sellers. The party split-flavor sheet ships in v1.1; check it once on the installed tablet.
 
+0. **(1 min) First run + sample data.** A new install shows a short tutorial (replay any time in Settings). Then Settings > Sample data > Load sample sales, so Insights and Day close have numbers to show.
 1. **(1 min) Orientation.** Open the app. Show the menu tiles (Rice Bowl, D1, D2, Ala-carte, Party, Dips, Drinks). "These are your real prices."
 2. **(2 min) Take an order.** Tap D2 (4pcs + Rice), choose Salted Egg. Add a 16oz drink and a Garlic mayo dip. Show the total (174). Choose dine-in. Pick a free Card number.
 3. **(1 min) Party pack, split flavors.** Tap Party 20pcs (680). Tick up to 3 flavors, for example Honey Barbeque + Garlic Parmesan, then "Add pack". Show that the pack is priced once at 680 with the flavors divided inside it.
@@ -49,7 +50,7 @@ Before the meeting: install the APK, make sure the opening float is blank for to
 8. **(1 min) Day close.** Open the Sales tab. Enter opening float 500 and counted cash. Show expected cash and over/short. Explain GCash is excluded.
 9. **(1 min) Backup.** Settings > Back up now. Show the share sheet (Drive, chat, USB). Mention the "Due" tag after 7 days. Mention Export sales as CSV.
 
-After the demo, delete the demo orders or restore from a clean backup so real opening day starts empty **(to confirm the cleanest way to reset the day)**.
+Show Insights with the sample sales. After the demo, Settings > Sample data > Remove sample sales (only tagged sample orders go; real orders stay), so real opening day starts empty. Orders you rang up by hand during the demo are real orders: void them or restore a clean backup.
 
 ## 4. Likely founder questions, honest answers
 
@@ -81,6 +82,7 @@ After the demo, delete the demo orders or restore from a clean backup so real op
 - [ ] Build or copy the APK and install it on the tablet (allow "install unknown apps"). Open once so the database and menu are created.
 - [ ] Set prices, flavors, best sellers, Card pool size, GCash name and QR in Settings. Check the 50pcs price against the founder's answer.
 - [ ] Run the demo script once end to end, then clear the test orders so day one starts empty.
+- [ ] Go-live: remove sample sales, confirm 1710 vs 1770 (50 pc party price).
 - [ ] Train the cashier (15 minutes): take an order, pay cash and GCash, mark Done, void with reason, enter the opening float at the start, count the drawer at close.
 - [ ] Agree who backs up, when, and where the files go. Do the first backup together and test a Restore on a spare device if one is available.
 - [ ] First week: check in at the end of each day. Review over/short, voids and their reasons, and any "Amended" days. Note menu or flow problems.

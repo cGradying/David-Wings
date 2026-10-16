@@ -1,6 +1,6 @@
 # David Wings Ledger
 
-Cashier ledger for David's Wings and Cafe (boneless wings): one cashier, one tablet, portrait or landscape. The seed is David's real menu (no sample orders). See `docs/PRODUCTION_PLAN.md`.
+Cashier ledger for David's Wings and Cafe (boneless wings): one cashier, one tablet, portrait or landscape. Version 1.3.0. The seed is David's real menu; a clean install has no orders. Current state, decisions and roadmap: `docs/PRODUCTION_PLAN.md`.
 
 One codebase, three ways to run it. All share the same rules (`core/`) and the same UI (`public/`).
 
@@ -10,7 +10,7 @@ One codebase, three ways to run it. All share the same rules (`core/`) and the s
 | **Dev / desktop** | `data/ledger.db` | Node 22+ |
 | **Online** (optional) | Cloudflare D1, behind a login | free Cloudflare account |
 
-The tablet and online copies are independent; move data between them with Back up / Restore (see `docs/adr/0001`). Flow: order -> cart -> pay -> receipt. The receipt is view-only, planned for v1.2 (`docs/RECEIPT_CONCEPT.md`); printing comes later. Vocabulary (Order, Sale, Void, Card, Ref, Day close) is in `CONTEXT.md`.
+The tablet and online copies are independent; move data between them with Back up / Restore (see `docs/adr/0001`). Flow: order -> cart -> pay -> receipt. The receipt is view-only (shipped in v1.2, see `docs/RECEIPT_CONCEPT.md`); printing comes later. Vocabulary (Order, Sale, Void, Card, Ref, Day close, Sample sales, Tutorial) is in `CONTEXT.md`.
 
 ## 1. Android tablet, fully offline
 
@@ -25,6 +25,14 @@ adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 Or copy the APK to the tablet and open it (allow "install unknown apps"). First launch creates the database and the menu. Tested on an Android 15 tablet emulator: orders survive force-stop, backup opens the share sheet. Minimum Android 7 (API 24).
 
 **Back up the tablet.** The database lives inside the app, so uninstalling the app erases it. Settings > Back up now sends a `.json` file through the share sheet (Drive, USB, chat). Settings > Restore replaces everything from such a file. A dot on the gear and a "Due" tag appear after 7 days without a backup.
+
+**First run.** A short tutorial walks a new cashier through the app on first launch; replay it any time from Settings.
+
+**Sample data.** Settings > Sample data > Load sample sales fills the ledger with demo orders so Insights and Day close have something to show. Sample orders are tagged and Remove sample sales deletes only them; real orders are never touched. A clean install has none. Remove them before go-live.
+
+**Safe area.** The app draws edge-to-edge (targetSdk 36). `values-v28/styles.xml` lets it extend into display cutouts, and `capacitor.config.json` sets `plugins.SystemBars.insetsHandling: "css"` so the WebView exposes `env(safe-area-inset-*)`, which the UI uses to pad around system bars and cutouts.
+
+Smoke test on a running emulator: `npm run android:smoke -- order` (see the header of `scripts/android-smoke.mjs`).
 
 ## 2. Dev / desktop
 
@@ -52,7 +60,7 @@ Then in the Cloudflare dashboard: Zero Trust > Access > Applications > add a sel
 
 - [Architecture diagram](docs/architecture.html)
 - [Production plan](docs/PRODUCTION_PLAN.md)
-- [Receipt concept](docs/RECEIPT_CONCEPT.md) (planned, not built)
+- [Receipt concept](docs/RECEIPT_CONCEPT.md) (view-only receipt shipped in v1.2; share and printing planned)
 - [Research](docs/research/) (pitching other shops)
 - [ADRs](docs/adr/)
 

@@ -1,3 +1,4 @@
+import { clearSample, loadSample, sampleCount } from './seed.js'; // circular but call-time only
 // Shared rules for every runtime. Talks to SQLite only through an adapter:
 //   get(sql, args) -> row | undefined      all(sql, args) -> rows
 //   run(sql, args) -> { changes }          batch([[sql, args], ...]) -> atomic, all-or-nothing
@@ -43,9 +44,11 @@ const DEFAULT_SETTINGS = {
   flavors: JSON.stringify(["David's Classic Buffalo", 'Salted Egg', 'Salt and Pepper', 'Honey Barbeque', 'Garlic Parmesan']),
   best_flavors: JSON.stringify(['Honey Barbeque', 'Garlic Parmesan']),
   last_backup: '',
+  onboarded: '',
+  hint_swipe: '',
 };
 
-export const SETTING_KEYS = ['pool_size', 'theme', 'gcash_name', 'gcash_qr', 'contact', 'last_backup'];
+export const SETTING_KEYS = ['pool_size', 'theme', 'gcash_name', 'gcash_qr', 'contact', 'last_backup', 'onboarded', 'hint_swipe'];
 
 const DAY_MS = 864e5;
 const bad = (msg, status = 400) => Object.assign(new Error(msg), { status });
@@ -280,5 +283,8 @@ export function makeApi(db) {
     csv: () => csv(db),
     backup: () => exportData(db),
     restore: (dump) => importData(db, dump),
+    sampleCount: () => sampleCount(db).then((count) => ({ count })),
+    loadSample: () => loadSample(db),
+    clearSample: () => clearSample(db),
   };
 }

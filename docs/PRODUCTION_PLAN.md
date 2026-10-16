@@ -17,9 +17,12 @@ Offline Android cashier ledger for David's Wings & Cafe. One core (`core/`) over
 
 Flavors: David's Classic Buffalo, Salted Egg, Salt and Pepper, Honey Barbeque*, Garlic Parmesan* (*best seller).
 
-## Roadmap
+## v1.3.0 (final)
+Shipped: first-run tutorial (replay in Settings), Sample data in Settings (load/remove tagged sample sales; clean install has none), Android safe area / edge-to-edge (display cutout mode, SystemBars css insets), accessibility pass, cleanup (.DS_Store untracked, boilerplate tests removed, smoke script finds tiles by name). Earlier: v1.1 redesign and split-flavor party packs, v1.2 editable cart and on-screen receipt.
+
+## Roadmap (remaining)
 1. **Release signing + install**: release keystore, signed APK/AAB, Play Store or sideloaded APK.
-2. **Receipts, phased** (concept in `docs/RECEIPT_CONCEPT.md`): v1.2 on-screen receipt, view only; v1.3 share as image; v1.4 ESC/POS 58mm Bluetooth printing (plugin and printer to evaluate with the founder's hardware).
+2. **Receipts**: share as image, then ESC/POS 58mm Bluetooth printing (`docs/RECEIPT_CONCEPT.md`; printer to evaluate with the founder's hardware). The view-only receipt is done (v1.2).
 3. **Scheduled backup reminder**: a notification on a timer; today there is only a "Due" tag after 7 days.
 4. ~~Party-pack split-flavor handling~~ Done in v1.1: a pack is priced once, up to 3 flavors split inside it.
 5. **D1 `database_id` setup**: create the D1 database and paste the id into `wrangler.toml`, then configure Access (`ACCESS_TEAM`, `ACCESS_AUD`).

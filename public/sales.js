@@ -1,6 +1,6 @@
 // Ledger > Sales tab. Pure HTML builders; app.js owns state and events.
-const peso = (n) => '₱' + Number(n).toLocaleString('en-PH');
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+import { esc, peso } from './util.js';
+import { isSample } from './settings-extra.js';
 const ref = (o) => '#' + String(o.ref).padStart(3, '0');
 const time = (t) => new Date(t).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
 const hourLabel = (h) => `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
@@ -55,6 +55,7 @@ function detail(o, S) {
   const arm = S.voidFor === o.id;
   return `<div class="det">${o.items.map((i) => `<div><span>${i.qty}× ${esc(i.name)}${i.flavor ? ` · ${esc(i.flavor)}` : ''}</span><b class="num">${peso(i.qty * i.price)}</b></div>`).join('')}
     <div class="tot"><span>${o.method === 'gcash' ? 'GCash' + (o.gcash_ref ? ' · ref ' + esc(o.gcash_ref) : '') : `Cash ${peso(o.tendered)} · change ${peso(o.change)}`}</span><b class="num">${peso(o.total)}</b></div>
+    ${isSample(o) ? '<div class="vr">Sample order</div>' : ''}
     ${o.void_reason ? `<div class="vr">Void: ${esc(o.void_reason)}</div>` : ''}
     ${o.status === 'void' ? '' : arm
     ? `<div class="reasons"><span class="lbl">Why void ${ref(o)}?</span><button class="tab" data-void-cancel>Keep</button>${VOID_REASONS.map((r) => `<button class="tab" data-void="${o.id}" data-why="${esc(r)}">${r}</button>`).join('')}</div>`

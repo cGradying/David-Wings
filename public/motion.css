@@ -68,11 +68,31 @@
 .crow-fg.is-swiping { transition: none; }
 .crow { transition: transform 200ms var(--m-in), opacity 200ms var(--m-in); }
 .crow.is-removing { opacity: 0; transform: translateX(-24px); }
-.crow-delbtn, .crow-x { transition: transform 120ms var(--m-out); }
-.crow-delbtn:active, .crow-x:active { transform: scale(.96); }
-.receipt-sheet, .sheet .receipt { animation: m-up 220ms var(--m-out); }
-@keyframes m-draw { from { stroke-dashoffset: 30; } to { stroke-dashoffset: 0; } }
-.paid-check path, .paid-check polyline { stroke-dasharray: 30; animation: m-draw 240ms var(--m-out) 60ms backwards; }
+.crow-delbtn { transition: transform 120ms var(--m-out); }
+.crow-delbtn:active { transform: scale(.96); }
+.sheet .receipt { animation: m-up 220ms var(--m-out); }
+
+/* cart swipe hint peek */
+@keyframes m-peek { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-44px); } }
+.crow.hint-peek .crow-fg { animation: m-peek 700ms ease 300ms 1; }
+
+/* tutorial */
+@keyframes m-tut-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes m-tut-out { from { transform: none; opacity: 1; } to { transform: translateX(-24px); opacity: 0; } }
+.tut-in { animation: m-tut-in 260ms var(--m-out); }
+.tut-out { pointer-events: none; animation: m-tut-out 260ms var(--m-in) forwards; }
+.tut-dot { transition: transform 200ms var(--m-out), background-color 200ms var(--m-out); }
+@keyframes m-t-tap { 0%, 100% { transform: scale(.7); opacity: .2; } 40% { transform: scale(1.3); opacity: .9; } }
+@keyframes m-t-swipe { 0%, 25%, 100% { transform: translateX(0); } 55%, 80% { transform: translateX(-22px); } }
+@keyframes m-t-pop { 0%, 55%, 100% { transform: scale(1); opacity: 1; } 25% { transform: scale(1.12); opacity: .85; } }
+@keyframes m-t-draw { 0% { stroke-dashoffset: 40; } 60%, 100% { stroke-dashoffset: 0; } }
+.tut-scene .tut-tap, .tut-scene .tut-row, .tut-scene .tut-cash, .tut-scene .tut-receipt, .tut-scene .tut-drawer { transform-box: fill-box; transform-origin: center; animation-iteration-count: infinite; animation-timing-function: var(--m-std); }
+.tut-scene .tut-tap { animation-name: m-t-tap; animation-duration: 1.8s; }
+.tut-scene .tut-row { animation-name: m-t-swipe; animation-duration: 2.6s; }
+.tut-scene .tut-cash { animation-name: m-t-pop; animation-duration: 2.2s; }
+.tut-scene .tut-receipt { animation-name: m-t-pop; animation-duration: 2.2s; animation-delay: .5s; }
+.tut-scene .tut-drawer { animation-name: m-t-pop; animation-duration: 2.4s; }
+.tut-scene .tut-check { stroke-dasharray: 40; animation: m-t-draw 2.4s var(--m-std) infinite; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

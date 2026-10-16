@@ -36,10 +36,18 @@ Opening float plus the day's cash Sales. GCash Sales are excluded because they a
 **Amended**:
 A closed day whose Sales changed after closing (for example a late Void). Its close is recomputed and flagged.
 
+**Sample sales**:
+Demo Orders loaded from Settings to show Insights and Day close. Tagged so they can be removed in one tap; real Orders are never touched. A clean install has none.
+_Avoid_: Test orders, fake data
+
+**Tutorial**:
+The short first-run walkthrough for a new cashier. Replayable from Settings.
+
 ## Relationships
 
 - An **Order** has exactly one **Card** while being prepared, and one **Ref** for life.
 - A **Sale** is an **Order** that is not **Void**.
+- **Sample sales** are Orders tagged as sample; removing them deletes only those.
 - A **Day close** summarises one day's **Sales** and can become **Amended**.
 
 ## Flagged ambiguities

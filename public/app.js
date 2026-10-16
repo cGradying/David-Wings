@@ -1,13 +1,13 @@
 import { salesHtml } from './sales.js';
 import { art } from './art.js';
 import { T } from './copy.js';
+import { $, esc, peso, today, wait } from './util.js';
+import { sheet, dismiss, toast } from './sheet.js';
+import { initSwipe } from './swipe.js';
+import { maybeShowTutorial } from './tutorial.js';
+import { extraSettingsHtml, extraSettingsClick, loadSampleCount } from './settings-extra.js';
 
-const $ = (s) => document.querySelector(s);
-const peso = (n) => '₱' + Number(n).toLocaleString('en-PH');
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const calm = matchMedia('(prefers-reduced-motion: reduce)');
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 document.addEventListener('touchstart', () => {}, { passive: true });
 const landscape = () => matchMedia('(orientation: landscape) and (min-width: 900px)').matches;
 
@@ -48,13 +48,6 @@ async function saveFile(name, text, type) {
 const BACKUP_DAYS = 7;
 const backupDue = () => !S.settings.last_backup || Date.now() - Number(S.settings.last_backup) > BACKUP_DAYS * 864e5;
 
-let toastT;
-function toast(msg, err) {
-  document.querySelector('.toast')?.remove();
-  const t = Object.assign(document.createElement('div'), { className: 'toast' + (err ? ' err' : ''), textContent: msg, role: 'status' });
-  document.body.append(t);
-  clearTimeout(toastT); toastT = setTimeout(() => t.remove(), 2800);
-}
 const guard = (fn) => async (...a) => { try { await fn(...a); } catch (e) { toast(e.message, true); } };
 
 function applyTheme() {
@@ -233,26 +226,13 @@ $('#main').addEventListener('click', guard(async (e) => {
 }));
 $('#main').addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-tile]')) { e.preventDefault(); e.target.click(); } });
 
-/* ---------- sheets ---------- */
-function dismiss(s, onClose) {
-  if (s.classList.contains('is-closing')) return;
-  s.classList.add('is-closing');
-  if (calm.matches) s.remove(); else { s.addEventListener('animationend', () => s.remove(), { once: true }); setTimeout(() => s.remove(), 200); }
-  onClose?.();
-}
-function sheet(html, onClose, cls = '') {
-  document.querySelector('.scrim')?.remove();
-  const s = Object.assign(document.createElement('div'), { className: 'scrim', innerHTML: `<div class="sheet ${cls}" role="dialog" aria-modal="true">${html}</div>` });
-  s.addEventListener('click', (e) => { if (e.target === s || e.target.closest('[data-close]')) dismiss(s, onClose); });
-  document.body.append(s);
-  return s;
-}
+/* ---------- sheets (see sheet.js) ---------- */
 // One tap of "Add pack" = one pack with the ticked flavors (up to 3) split across it.
 function partySheet(m) {
   const pick = new Set();
   const body = () => `<h2>${esc(m.name)}</h2><p class="sub num">${peso(m.price)} per pack · tick up to 3 flavors to split</p>
     ${S.flavors.map((f) => `<label class="frow"><span class="nm">${esc(f)}${S.best?.includes(f) ? ' <span class="muted">★ best seller</span>' : ''}</span>
-      <input type="checkbox" data-pf="${esc(f)}" ${pick.has(f) ? 'checked' : ''} ${!pick.has(f) && pick.size >= 3 ? 'disabled' : ''} style="width:28px;height:28px"></label>`).join('')}
+      <input type="checkbox" class="chk" data-pf="${esc(f)}" ${pick.has(f) ? 'checked' : ''} ${!pick.has(f) && pick.size >= 3 ? 'disabled' : ''}></label>`).join('')}
     <button class="btn" data-addpack ${pick.size ? '' : 'disabled'}>Add pack${pick.size ? ` · ${[...pick].join(' + ')}` : ''}</button>
     <button class="btn" data-close>Done · <b class="pk">${qtyOf(m.id)}</b> pack${qtyOf(m.id) === 1 ? '' : 's'}</button>`;
   const s = sheet(body(), refreshMain);
@@ -285,10 +265,15 @@ function renderCart() {
       return `<div class="crow" data-key="${esc(k)}"><div class="crow-del" aria-hidden="true"><button class="crow-delbtn" data-rm="${esc(k)}" aria-label="${esc(T.remove)} ${nm}" tabindex="-1">${I.trash}</button></div>
         <div class="crow-fg"><span class="thumb">${art(l.m.category)}</span><div class="cinfo"><b class="cnm">${esc(l.m.name)}</b>${l.flavor ? `<span class="cfl muted">${esc(l.flavor)}</span>` : ''}<span class="cpr num">${peso(l.m.price)}</span></div>
         <div class="step"><button data-dec="${esc(k)}" aria-label="Remove one ${nm}">−</button><span class="v num${k === S.bumpedKey ? ' is-bump' : ''}">${l.qty}</span><button class="p" data-inc="${esc(k)}" aria-label="Add one ${nm}">+</button></div>
-        <b class="clt num">${peso(l.m.price * l.qty)}</b>
-        <button class="crow-x" data-rm="${esc(k)}" aria-label="${esc(T.remove)} ${nm}">${I.x}</button></div></div>`; }).join('')}</div>
+        <b class="clt num">${peso(l.m.price * l.qty)}</b></div></div>`; }).join('')}</div>
       <div class="review"><div><span>${esc(T.items(c))}</span><b class="num">${peso(total())}</b></div></div>`);
   S.bumpedKey = null;
+  if (lines.length && S.settings.hint_swipe !== '1') {
+    $('#main .crow')?.classList.add('hint-peek');
+    $('#main .cart')?.insertAdjacentHTML('afterend', `<p class="swipe-hint muted">${esc(T.swipeHint ?? 'Swipe left to remove')}</p>`);
+    S.settings.hint_swipe = '1';
+    setTimeout(() => save({ hint_swipe: '1' }).catch(() => {}), 1200);
+  }
 }
 async function removeLine(k) {
   const qty = S.cart.get(k);
@@ -299,11 +284,10 @@ async function removeLine(k) {
   if (S.view === 'cart') { renderCart(); renderBar(); }
   undoToast(T.removed, () => { S.cart.set(k, qty); if (S.view === 'cart') { renderCart(); renderBar(); } });
 }
-let swiped = 0;
 async function cartClick(t) {
-  if (Date.now() - swiped < 60) return;
+  if (swipe.justSwiped()) return;
   const rm = t.closest('[data-rm]')?.dataset.rm;
-  $('#main').querySelectorAll('.crow.is-open').forEach((r) => r.classList.remove('is-open'));
+  swipe.closeAll();
   if (rm) return removeLine(rm);
   if (t.closest('[data-cartback]')) return go('order');
   const inc = t.closest('[data-inc]')?.dataset.inc, dec = t.closest('[data-dec]')?.dataset.dec, k = inc ?? dec;
@@ -313,33 +297,7 @@ async function cartClick(t) {
   S.bumpedKey = k; bump(Number(id), fl || undefined, inc != null ? 1 : -1);
   const st = $('#main').scrollTop; renderCart(); $('#main').scrollTop = st; renderBar();
 }
-let sw = null;
-$('#main').addEventListener('pointerdown', (e) => {
-  const fg = e.target.closest('.crow-fg');
-  if (!fg || e.target.closest('button')) return;
-  const row = fg.closest('.crow');
-  sw = { fg, row, x0: e.clientX, y0: e.clientY, open: row.classList.contains('is-open'), dx: 0, on: false };
-});
-document.addEventListener('pointermove', (e) => {
-  if (!sw) return;
-  const dx = e.clientX - sw.x0;
-  if (!sw.on) {
-    if (Math.abs(dx) < 8) return;
-    if (Math.abs(e.clientY - sw.y0) > Math.abs(dx)) { sw = null; return; }
-    sw.on = true; sw.fg.classList.add('is-swiping'); sw.fg.setPointerCapture?.(e.pointerId);
-    $('#main').querySelectorAll('.crow.is-open').forEach((r) => r !== sw.row && r.classList.remove('is-open'));
-  }
-  const raw = Math.min(0, dx + (sw.open ? -72 : 0));
-  sw.dx = raw < -72 ? Math.max(-88, -72 + (raw + 72) * 0.2) : raw; // rubber-band past the trash button instead of exposing a gap
-  sw.fg.style.transform = `translateX(${sw.dx}px)`;
-});
-const swipeEnd = () => {
-  if (!sw) return;
-  if (sw.on) { sw.row.classList.toggle('is-open', sw.dx <= -72); sw.fg.classList.remove('is-swiping'); sw.fg.style.transform = ''; swiped = Date.now(); }
-  sw = null;
-};
-document.addEventListener('pointerup', swipeEnd);
-document.addEventListener('pointercancel', swipeEnd);
+const swipe = initSwipe($('#main'));
 
 /* ---------- receipt (view only) ---------- */
 function receiptSheet() {
@@ -373,13 +331,13 @@ function renderPay() {
       <div class="keys">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', '⌫'].map((k) => `<button class="key num" data-k="${k}" aria-label="${k === '⌫' ? 'Backspace' : k}">${k}</button>`).join('')}</div>`;
   const qr = S.settings.gcash_qr ? `<img src="${S.settings.gcash_qr}" alt="GCash QR">` : '<div class="ph">No QR yet.<br>Add yours in Settings.</div>';
   const gcash = `<div class="qr">${qr}<div><b>${esc(S.settings.gcash_name)}</b><div class="muted">Customer scans, pays <span class="num">${peso(due)}</span></div></div></div>
-      <input class="field" id="ref" inputmode="numeric" placeholder="GCash reference no." value="${esc(p.ref)}" style="margin-top:12px">`;
+      <input class="field mt-3" id="ref" inputmode="numeric" placeholder="GCash reference no." value="${esc(p.ref)}">`;
   $('#main').innerHTML = `<div class="pay-total"><span class="lbl">Total cost</span><span class="amt num">${peso(due)}</span></div>
     <div class="pay-cols"><div>
       <div class="box"><div class="section-title">Order</div>${seg('type', [['dine-in', 'Dine-in'], ['take-out', 'Take-out']])}</div>
       <div class="box"><div class="section-title">Customer card number</div><div class="cards">${cardBtns}</div></div>
       <div class="box review">${cartLines().map((l) => `<div><span>${l.qty}× ${esc(l.m.name)}${l.flavor ? ` · ${esc(l.flavor)}` : ''}</span><b class="num">${peso(l.qty * l.m.price)}</b></div>`).join('')}</div>
-    </div><div><div class="box"><div class="section-title">Payment</div>${seg('method', [['cash', 'Cash'], ['gcash', 'GCash']])}<div style="height:12px"></div>${p.method === 'cash' ? cash : gcash}</div></div></div>`;
+    </div><div><div class="box"><div class="section-title">Payment</div>${seg('method', [['cash', 'Cash'], ['gcash', 'GCash']])}<div class="mt-3"></div>${p.method === 'cash' ? cash : gcash}</div></div></div>`;
 }
 async function mainClick(e) {
   const t = e.target;
@@ -421,11 +379,11 @@ async function renderInsights() {
     return `<div class="split" role="img" aria-label="${names.map((n) => `${n} ${peso(get(n))}`).join(', ')}">${names.map((n, i) => get(n) ? `<i style="width:${(get(n) / tot) * 100}%;background:${colors[i]}" data-tip="${n}: ${peso(get(n))}"></i>` : '').join('')}</div>
     <div class="legend">${names.map((n, i) => `<span style="--k:${colors[i]}">${n}<span class="t num">${peso(get(n))} · ${Math.round((get(n) / tot) * 100)}%</span></span>`).join('')}</div>`; };
   $('#lbody').innerHTML = `
-    <div class="seg" style="max-width:340px;margin-bottom:14px">${[7, 14, 30].map((n) => `<button data-range="${n}" aria-pressed="${S.range === n}">${n} days</button>`).join('')}</div>
+    <div class="seg mw-sm mb-3">${[7, 14, 30].map((n) => `<button data-range="${n}" aria-pressed="${S.range === n}">${n} days</button>`).join('')}</div>
     <div class="kpis">
       <div class="kpi hero"><div class="lbl">Sales · last ${S.range} days</div><div class="v num">${peso(st.cur.sales)}</div>${delta(st.cur.sales, st.prev.sales)}</div>
-      <div class="kpi"><div class="lbl">Today</div><div class="v num">${peso(last.sales)}</div><span class="muted">${last.orders} orders</span></div>
-      <div class="kpi"><div class="lbl">Avg order</div><div class="v num">${peso(avg)}</div><span class="muted">${st.cur.orders} orders</span></div>
+      <div class="kpi"><div class="lbl">Today</div><div class="v num">${peso(last.sales)}</div><span class="muted">${last.orders} order${last.orders === 1 ? '' : 's'}</span></div>
+      <div class="kpi"><div class="lbl">Avg order</div><div class="v num">${peso(avg)}</div><span class="muted">${st.cur.orders} order${st.cur.orders === 1 ? '' : 's'}</span></div>
     </div>
     <div class="charts">
       <div class="chart wide"><h3>Daily sales</h3><div class="cap">Peso sales per day · today highlighted</div>${barChart(st.series)}
@@ -434,7 +392,7 @@ async function renderInsights() {
       <div class="chart"><h3>Top sellers</h3><div class="cap">Units sold</div>${hbars(st.items, 'sold')}</div>
       <div class="chart"><h3>Flavor popularity</h3><div class="cap">Bowls, wings and party packs by flavor</div>${hbars(st.flavors, 'sold')}</div>
       <div class="chart"><h3>How customers pay</h3><div class="cap">Share of sales</div>${splitBar(st.methods, ['cash', 'gcash'], ['var(--c1)', 'var(--c2)']).replace('>cash<', '>Cash<').replace('>gcash<', '>GCash<')}
-        <div class="cap" style="margin-top:18px">Dine-in vs take-out</div>${splitBar(st.types, ['dine-in', 'take-out'], ['var(--c1)', 'var(--c2)']).replace('>dine-in<', '>Dine-in<').replace('>take-out<', '>Take-out<')}</div>
+        <div class="cap mt-4">Dine-in vs take-out</div>${splitBar(st.types, ['dine-in', 'take-out'], ['var(--c1)', 'var(--c2)']).replace('>dine-in<', '>Dine-in<').replace('>take-out<', '>Take-out<')}</div>
     </div>`;
 }
 function barChart(series) {
@@ -497,7 +455,7 @@ function closeSheet() {
   const l = S.ledger, c = l.close;
   const s = sheet(`<h2>Day close</h2><p class="sub">${dayLabel(l.day)}</p>
     <label class="lbl" for="cf">Opening float</label><input class="field" id="cf" inputmode="numeric" value="${c.float ?? ''}" placeholder="Cash in drawer at open">
-    <div class="review" style="margin:12px 0"><div><span>Cash sales</span><b class="num">${peso(l.summary.cash)}</b></div><div><span>Expected in drawer</span><b class="num" id="cexp">${peso(c.expected)}</b></div></div>
+    <div class="review my-3"><div><span>Cash sales</span><b class="num">${peso(l.summary.cash)}</b></div><div><span>Expected in drawer</span><b class="num" id="cexp">${peso(c.expected)}</b></div></div>
     <label class="lbl" for="cc">Cash counted</label><input class="field" id="cc" inputmode="numeric" value="${c.counted ?? ''}" placeholder="Count the drawer, then enter">
     <div class="change" id="cdiff" hidden></div><button class="btn" id="csave">Save</button><button class="btn alt" data-close>Cancel</button>`);
   const num = (id) => { const v = s.querySelector(id).value.trim(); return v === '' ? null : Number(v); };
@@ -543,20 +501,21 @@ function renderSettings() {
     <div class="box setrow"><div><h3>Dark mode</h3><p>Easier on the eyes in a dim stall.</p></div><button class="switch" role="switch" aria-checked="${dark}" aria-label="Dark mode" data-theme></button></div>
     <div class="box setrow"><div><h3>Customer cards</h3><p>How many numbered cards you hand out.</p></div>
       <div class="step"><button data-pool="-1" aria-label="Fewer cards">−</button><span class="v num">${S.settings.pool_size}</span><button class="p" data-pool="1" aria-label="More cards">+</button></div></div>
-    <div class="box"><h3>GCash QR</h3><p class="muted" style="margin-bottom:10px">Shown on the payment screen. Stays on this device.</p>
-      <input class="field" id="gname" value="${esc(S.settings.gcash_name)}" aria-label="Account name"><div class="qr" style="margin-top:12px">${S.settings.gcash_qr ? `<img src="${S.settings.gcash_qr}" alt="GCash QR">` : '<div class="ph">No QR uploaded</div>'}</div>
+    <div class="box"><h3>GCash QR</h3><p class="muted mb-3">Shown on the payment screen. Stays on this device.</p>
+      <input class="field" id="gname" value="${esc(S.settings.gcash_name)}" aria-label="Account name"><div class="qr mt-3">${S.settings.gcash_qr ? `<img src="${S.settings.gcash_qr}" alt="GCash QR">` : '<div class="ph">No QR uploaded</div>'}</div>
       <input type="file" id="qrfile" accept="image/*" hidden><button class="btn alt" data-qr>Upload QR image</button></div>
-    <div class="box"><h3>Menu &amp; prices</h3><p class="muted" style="margin-bottom:8px">Edit a name or price, then tap away to save. Switch off to hide from orders.</p>
+    <div class="box"><h3>Menu &amp; prices</h3><p class="muted mb-3">Edit a name or price, then tap away to save. Switch off to hide from orders.</p>
       ${S.menu.map((m) => `<div class="medit" data-mid="${m.id}"><input value="${esc(m.name)}" data-f="name" aria-label="Name"><input value="${m.price}" data-f="price" inputmode="numeric" aria-label="Price"><button class="switch" role="switch" aria-checked="${!!m.available}" data-avail aria-label="Available"></button></div>`).join('')}</div>
     <div class="box"><div class="setrow"><div><h3>Back up &amp; restore</h3><p>${S.settings.last_backup ? 'Last backup ' + new Date(Number(S.settings.last_backup)).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) : 'Never backed up'}. Keep a copy off this device.</p></div>${backupDue() ? '<span class="pill warn">Due</span>' : '<span class="pill ok">OK</span>'}</div>
-      <div class="seg" style="margin-top:12px"><button data-backup>Back up now</button><button data-restore>Restore…</button></div>
+      <div class="seg mt-3"><button data-backup>Back up now</button><button data-restore>Restore…</button></div>
       <input type="file" id="restorefile" accept=".json,application/json" hidden>
-      <button class="btn alt" data-csv style="margin-top:10px">Export sales as CSV</button></div>
-    <details class="box howto"><summary>How to operate &amp; diagnose</summary><ol style="margin-top:8px">
+      <button class="btn alt mt-3" data-csv>Export sales as CSV</button></div>
+    <details class="box howto"><summary>How to operate &amp; diagnose</summary><ol class="mt-3">
       <li>Tap <b>+</b>, tap items. Chicken items ask for a flavor. The total runs at the top.</li><li>Tap ✓, pick dine-in or take-out, pick the card you hand over.</li>
       <li>Cash: tap the amount paid. Change shows instantly. GCash: customer scans the QR.</li><li>Tap ✓ to take the order. It appears under <b>Now preparing</b>.</li>
       <li>When food is handed over, tap ✓ on the order twice. The card number frees up.</li><li>Wrong sale? Ledger → Sales → tap it → Void.</li>
       <li>Nothing loads? Check the ledger server is running, then reload. Data is in <code>data/ledger.db</code>.</li></ol></details>
+    ${extraSettingsHtml(S)}
     <div class="box"><h3>Contact</h3><p class="muted">${esc(S.settings.contact)}</p></div></div>`;
 }
 async function save(patch) { S.settings = await api('/settings', { method: 'PUT', body: patch }); applyTheme(); }
@@ -569,6 +528,7 @@ function downscale(file) {
   });
 }
 async function settingsClick(t) {
+  if (await extraSettingsClick(t, { api, S, load, renderSettings, renderQueue, renderBar, save, toast })) return;
   const stamp = new Date().toISOString().slice(0, 10);
   if (t.closest('[data-backup]')) { await saveFile(`david-wings-backup-${stamp}.json`, JSON.stringify(await api('/backup')), 'application/json'); await load(); renderBar(); toast('Backup ready'); return renderSettings(); }
   if (t.closest('[data-csv]')) { await saveFile(`david-wings-sales-${stamp}.csv`, await api('/export.csv'), 'text/csv'); return; }
@@ -625,7 +585,7 @@ async function render() {
   else if (v === 'cart') renderCart();
   else if (v === 'pay') renderPay();
   else if (v === 'ledger') await renderLedger().catch((e) => toast(e.message, true));
-  else if (v === 'settings') renderSettings();
+  else if (v === 'settings') { await loadSampleCount(api, S).catch(() => 0); renderSettings(); }
   else $('#main').innerHTML = '';
   $('#main').scrollTop = 0;
 }
@@ -634,6 +594,7 @@ setInterval(() => { if (!document.hidden && (S.view === 'home' || landscape())) 
 
 (async () => {
   try { await load(); } catch (e) { document.body.insertAdjacentHTML('beforeend', `<div class="empty"><b>Can't reach the ledger server</b>Start it with <code>node server.js</code>, then reload.</div>`); return; }
-  render();
+  await render();
+  if (!document.querySelector('.scrim')) maybeShowTutorial(S, save);
   if ('serviceWorker' in navigator && !window.__native) navigator.serviceWorker.register('/sw.js').catch(() => {});
 })();

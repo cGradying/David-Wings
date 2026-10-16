@@ -14,13 +14,17 @@ export async function handleApi(db, method, path, q, body) {
       if (path === '/api/ledger') return ok(await api.ledger(q.get('date') || localDay(Date.now(), (await api.settings()).tz)));
       if (path === '/api/settings') return ok(await api.settings());
       if (path === '/api/backup') return ok(await api.backup());
+      if (path === '/api/sample') return ok(await api.sampleCount());
       if (path === '/api/export.csv') return ok(await api.csv(), 'text/csv');
     } else if (method === 'POST') {
       if (path === '/api/orders') return ok(await api.createOrder(body));
+      if (path === '/api/sample') return ok(await api.loadSample());
       if (path === '/api/restore') return ok(await api.restore(body));
       if ((m = path.match(/^\/api\/orders\/(\d+)\/done$/))) return ok(await api.finishOrder(Number(m[1])));
       if ((m = path.match(/^\/api\/orders\/(\d+)\/void$/))) return ok(await api.voidOrder(Number(m[1]), body.reason));
       if ((m = path.match(/^\/api\/close\/(\d{4}-\d{2}-\d{2})$/))) return ok(await api.saveClose(m[1], body));
+    } else if (method === 'DELETE') {
+      if (path === '/api/sample') return ok(await api.clearSample());
     } else if (method === 'PUT') {
       if (path === '/api/settings') return ok(await api.saveSettings(body));
       if ((m = path.match(/^\/api\/menu\/(\d+)$/))) { await api.updateMenuItem(Number(m[1]), body); return ok({ ok: true }); }

@@ -2,6 +2,16 @@
   "appId": "ph.davidwings.ledger",
   "appName": "David Wings Ledger",
   "webDir": "www",
-  "android": { "allowMixedContent": false },
-  "plugins": { "CapacitorSQLite": { "androidIsEncryption": false } }
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "CapacitorSQLite": {
+      "androidIsEncryption": false
+    },
+    "SystemBars": {
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover"
+    }
+  }
 }

@@ -6,6 +6,8 @@ INSERT OR REPLACE INTO settings (key, value) VALUES ('gcash_qr', '');
 INSERT OR REPLACE INTO settings (key, value) VALUES ('contact', 'PUP Sta. Mesa, Manila · facebook.com/PUPDavidsWingsandCafe');
 INSERT OR REPLACE INTO settings (key, value) VALUES ('flavors', '["David''s Classic Buffalo","Salted Egg","Salt and Pepper","Honey Barbeque","Garlic Parmesan"]');
 INSERT OR REPLACE INTO settings (key, value) VALUES ('best_flavors', '["Honey Barbeque","Garlic Parmesan"]');
+INSERT OR REPLACE INTO settings (key, value) VALUES ('onboarded', '');
+INSERT OR REPLACE INTO settings (key, value) VALUES ('hint_swipe', '');
 INSERT OR REPLACE INTO menu_items (id, name, category, price, flavored, available, sort) VALUES (1, 'Rice Bowl (boneless)', 'Rice Bowl', 65, 1, 1, 0);
 INSERT OR REPLACE INTO menu_items (id, name, category, price, flavored, available, sort) VALUES (2, 'D1 · 2pcs + Rice', 'Wings', 75, 1, 1, 1);
 INSERT OR REPLACE INTO menu_items (id, name, category, price, flavored, available, sort) VALUES (3, 'D1 · 2pcs + Rice + Drink', 'Wings', 95, 1, 1, 2);
