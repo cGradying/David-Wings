@@ -1,13 +1,14 @@
 {
   "name": "david-wings-ledger",
   "version": "1.0.0",
-  "description": "Offline cashier ledger for David's Wings and Cafe (boneless wings). One cashier, one tablet (portrait or landscape), real SQLite database. Menu and sales are mock data.",
+  "description": "Offline cashier ledger for David's Wings and Cafe (boneless wings). One cashier, one tablet (portrait or landscape), real SQLite database.",
   "main": "server.js",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
     "test": "node test.js",
+    "lint": "eslint .",
     "start": "node server.js",
     "android:build": "node scripts/build-android.mjs && cap sync android && cd android && ./gradlew assembleDebug",
     "sql": "node scripts/make-sql.mjs",
@@ -25,7 +26,7 @@
     "url": "https://github.com/cGradying/David-Wings/issues"
   },
   "homepage": "https://github.com/cGradying/David-Wings#readme",
-  "private": "true",
+  "private": true,
   "dependencies": {
     "@capacitor-community/sqlite": "^8.1.1",
     "@capacitor/android": "^8.5.3",
@@ -35,7 +36,10 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.3",
+    "@eslint/js": "^10.0.1",
     "esbuild": "^0.28.2",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
     "wrangler": "^4.148.0"
   }
 }

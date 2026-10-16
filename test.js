@@ -6,16 +6,16 @@ import { nodeAdapter } from './adapters/node.js';
 
 const db = nodeAdapter(':memory:');
 await migrate(db);
-await seed(db);
+await seed(db, 14);
 const today = localDay(Date.now(), 'Asia/Manila');
-const base = { items: [{ item_id: 1, qty: 2, flavor: 'Buffalo' }, { item_id: 7, qty: 1 }], type: 'dine-in', method: 'cash', tendered: 300 };
+const base = { items: [{ item_id: 1, qty: 2, flavor: 'Honey Barbeque' }, { item_id: 12, qty: 1 }], type: 'dine-in', method: 'cash', tendered: 300 };
 const fails = (p, re, msg) => assert.rejects(p, re, msg);
 
 const count = async () => (await db.get('SELECT COUNT(*) AS n FROM orders')).n;
 const before = await count();
 const o = await createOrder(db, { ...base, card: (await cardState(db)).suggested });
 assert.equal(await count(), before + 1);
-assert.equal(o.total, 2 * 119 + 20, 'server computes price');
+assert.equal(o.total, 2 * 65 + 10, 'server computes price');
 assert.equal(o.change, 300 - o.total, 'change stored');
 assert.ok((await cardState(db)).used.includes(o.card), 'card in use');
 await fails(createOrder(db, { ...base, card: o.card }), /already in use/, 'no double-assign');

@@ -40,7 +40,8 @@ const DEFAULT_SETTINGS = {
   gcash_name: 'David Wings and Cafe',
   gcash_qr: '',
   contact: 'PUP Sta. Mesa, Manila · facebook.com/PUPDavidsWingsandCafe',
-  flavors: JSON.stringify(['Buffalo', 'Garlic Parmesan', 'Soy Garlic', 'Honey Butter', 'Salted Egg']),
+  flavors: JSON.stringify(["David's Classic Buffalo", 'Salted Egg', 'Salt and Pepper', 'Honey Barbeque', 'Garlic Parmesan']),
+  best_flavors: JSON.stringify(['Honey Barbeque', 'Garlic Parmesan']),
   last_backup: '',
 };
 
@@ -262,7 +263,7 @@ export async function importData(db, dump) {
 /** Everything the UI calls, as one object, so the tablet and the web build share the same surface. */
 export function makeApi(db) {
   return {
-    menu: async () => ({ items: await getMenu(db), flavors: JSON.parse((await getSettings(db)).flavors), top: await topSellers(db) }),
+    menu: async () => { const st = await getSettings(db); return { items: await getMenu(db), flavors: JSON.parse(st.flavors), best: JSON.parse(st.best_flavors ?? '[]'), top: await topSellers(db) }; },
     cards: () => cardState(db),
     queue: () => preparingOrders(db),
     createOrder: (body) => createOrder(db, body),

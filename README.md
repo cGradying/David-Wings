@@ -1,6 +1,6 @@
 # David Wings Ledger
 
-Cashier ledger for David's Wings and Cafe (boneless wings): one cashier, one tablet, portrait or landscape. Menu and sales are mock data.
+Cashier ledger for David's Wings and Cafe (boneless wings): one cashier, one tablet, portrait or landscape. The seed is David's real menu (no sample orders). See `docs/PRODUCTION_PLAN.md`.
 
 One codebase, three ways to run it. All share the same rules (`core/`) and the same UI (`public/`).
 
@@ -22,7 +22,7 @@ npm run android:build            # -> android/app/build/outputs/apk/debug/app-de
 adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Or copy the APK to the tablet and open it (allow "install unknown apps"). First launch creates the database and the demo menu. Tested on an Android 15 tablet emulator: orders survive force-stop, backup opens the share sheet. Minimum Android 7 (API 24).
+Or copy the APK to the tablet and open it (allow "install unknown apps"). First launch creates the database and the menu. Tested on an Android 15 tablet emulator: orders survive force-stop, backup opens the share sheet. Minimum Android 7 (API 24).
 
 **Back up the tablet.** The database lives inside the app, so uninstalling the app erases it. Settings > Back up now sends a `.json` file through the share sheet (Drive, USB, chat). Settings > Restore replaces everything from such a file. A dot on the gear and a "Due" tag appear after 7 days without a backup.
 
@@ -40,13 +40,20 @@ D1 free tier is far larger than this app needs, and nothing sleeps. Security: HT
 ```
 npx wrangler login
 npx wrangler d1 create david-wings-ledger        # paste database_id into wrangler.toml
-npm run sql                                      # writes worker/schema.sql + seed.sql  (add -- --demo for fake sales)
+npm run sql                                      # writes worker/schema.sql + seed.sql  (add -- --demo for fake sales, dev only)
 npx wrangler d1 execute david-wings-ledger --remote --file worker/schema.sql
 npx wrangler d1 execute david-wings-ledger --remote --file worker/seed.sql
 npm run deploy
 ```
 
 Then in the Cloudflare dashboard: Zero Trust > Access > Applications > add a self-hosted app for your Worker URL, allow only your email(s), copy its **Application Audience (AUD)** tag, and set `ACCESS_TEAM` (your team name) and `ACCESS_AUD` in `wrangler.toml`; deploy again. Local test of the Worker: `npx wrangler dev --var DEV:1` (the `DEV` flag disables the check; never set it in production).
+
+## Docs
+
+- [Architecture diagram](docs/architecture.html)
+- [Production plan](docs/PRODUCTION_PLAN.md)
+- [Research](docs/research/) (pitching other shops)
+- [ADRs](docs/adr/)
 
 ## Layout
 

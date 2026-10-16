@@ -11,7 +11,7 @@ writeFileSync('worker/schema.sql', SCHEMA.split(';').map(one).filter(Boolean).ma
 const demo = process.argv.includes('--demo');
 const db = nodeAdapter(':memory:');
 await migrate(db);
-await seed(db);
+await seed(db, demo ? 14 : 0);
 const dump = await exportData(db);
 const q = (v) => (v == null ? 'NULL' : typeof v === 'number' ? String(v) : `'${String(v).replaceAll("'", "''")}'`);
 const lines = [];

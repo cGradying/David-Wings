@@ -1,22 +1,23 @@
-import { closeOrder, createOrder, getSettings } from './core.js';
+import { closeOrder, createOrder, getSettings, migrate } from './core.js';
 
 const MENU = [
-  // name, category, price, flavored, weight (popularity)
-  ['Boneless 6pcs', 'Wings', 119, 1, 10],
-  ['Boneless 12pcs', 'Wings', 219, 1, 6],
-  ['Boneless 18pcs', 'Wings', 319, 1, 2],
-  ['Wings Solo', 'Combos', 159, 1, 9],
-  ['Wings Duo', 'Combos', 289, 1, 4],
-  ['Barkada Box', 'Combos', 429, 1, 1.2],
-  ['Plain Rice', 'Sides', 20, 0, 8],
-  ['Fries', 'Sides', 59, 0, 4],
-  ['Cheesy Fries', 'Sides', 79, 0, 3],
-  ['Coleslaw', 'Sides', 39, 0, 1],
-  ['Iced Tea', 'Drinks', 35, 0, 7],
-  ['Soda', 'Drinks', 40, 0, 4],
-  ['Bottled Water', 'Drinks', 20, 0, 2],
-  ['Iced Americano', 'Drinks', 70, 0, 3],
-  ['Café Latte', 'Drinks', 85, 0, 2.5],
+  // name, category, price, flavored, weight (popularity). Prices from the owner's menu; edit in-app.
+  ['Rice Bowl (boneless)', 'Rice Bowl', 65, 1, 12],
+  ['D1 · 2pcs + Rice', 'Wings', 75, 1, 8],
+  ['D1 · 2pcs + Rice + Drink', 'Wings', 95, 1, 6],
+  ['D2 · 4pcs + Rice', 'Wings', 139, 1, 6],
+  ['D2 · 4pcs + Rice + Drink', 'Wings', 159, 1, 5],
+  ['Ala-carte 6pcs', 'Wings', 205, 1, 3],
+  ['Ala-carte 8pcs', 'Wings', 270, 1, 2],
+  ['Ala-carte 12pcs', 'Wings', 408, 1, 1.5],
+  ['Party 20pcs', 'Party', 680, 1, 0.6],
+  ['Party 30pcs', 'Party', 1025, 1, 0.3],
+  ['Party 50pcs', 'Party', 1710, 1, 0.1],
+  ['Barbecue sauce', 'Dips', 10, 0, 4],
+  ['Gravy', 'Dips', 10, 0, 4],
+  ['Garlic mayo', 'Dips', 10, 0, 3],
+  ['Drink 16oz', 'Drinks', 25, 0, 6],
+  ['Drink 22oz', 'Drinks', 30, 0, 4],
 ];
 
 function rng(seed) {
@@ -28,13 +29,21 @@ function rng(seed) {
   };
 }
 
-export async function seed(db, days = 14) {
+// days = 0 seeds the menu only (production). days > 0 adds fake orders for demos and tests.
+export async function seed(db, days = 0) {
   let n_orders = 0;
+  // Installs from the mock-data build carry the old menu, fake sales and old flavors: reset them once.
+  if (await db.get("SELECT 1 AS x FROM menu_items WHERE name = 'Wings Solo'")) {
+    await db.batch([...['order_items', 'orders', 'day_close', 'menu_items'].map((t) => [`DELETE FROM ${t}`, []]),
+      ['DELETE FROM settings WHERE key IN (\'flavors\', \'best_flavors\')', []]]);
+    await migrate(db);
+  }
   if ((await db.get('SELECT COUNT(*) AS n FROM menu_items')).n) return;
   await db.batch(MENU.map(([n, c, p, f], i) => ['INSERT INTO menu_items (name, category, price, flavored, sort) VALUES (?, ?, ?, ?, ?)', [n, c, p, f, i]]));
+  if (!days) return;
   const items = (await db.all('SELECT * FROM menu_items ORDER BY id')).map((m, i) => ({ ...m, w: MENU[i][4] }));
   const flavors = JSON.parse((await getSettings(db)).flavors);
-  const flavorW = [10, 6, 7, 5, 4];
+  const flavorW = [6, 4, 3, 10, 9];
   const rand = rng(2026);
   const pick = (arr, w) => {
     let r = rand() * w.reduce((a, b) => a + b, 0);
@@ -68,10 +77,11 @@ export async function seed(db, days = 14) {
     }
   }
   // A few live orders so the queue isn't empty on first launch.
+  const id = (name) => items.find((i) => i.name === name).id;
   const live = [
-    { items: [{ item_id: 4, qty: 1, flavor: 'Garlic Parmesan' }, { item_id: 11, qty: 1 }], type: 'dine-in', method: 'cash', tendered: 200 },
-    { items: [{ item_id: 2, qty: 1, flavor: 'Buffalo' }, { item_id: 7, qty: 2 }, { item_id: 12, qty: 1 }], type: 'take-out', method: 'gcash', gcash_ref: '4829104481923' },
-    { items: [{ item_id: 5, qty: 1, flavor: 'Salted Egg' }, { item_id: 9, qty: 1 }], type: 'dine-in', method: 'cash', tendered: 500 },
+    { items: [{ item_id: id('D2 · 4pcs + Rice'), qty: 1, flavor: 'Garlic Parmesan' }, { item_id: id('Drink 16oz'), qty: 1 }], type: 'dine-in', method: 'cash', tendered: 200 },
+    { items: [{ item_id: id('D1 · 2pcs + Rice'), qty: 1, flavor: 'Salted Egg' }, { item_id: id('Gravy'), qty: 2 }, { item_id: id('Drink 22oz'), qty: 1 }], type: 'take-out', method: 'gcash', gcash_ref: '4829104481923' },
+    { items: [{ item_id: id('Party 20pcs'), qty: 1, flavor: 'Honey Barbeque' }, { item_id: id('Garlic mayo'), qty: 1 }], type: 'dine-in', method: 'cash', tendered: 700 },
   ];
   for (const [i, o] of live.entries()) await createOrder(db, { ...o, card: [7, 12, 3][i] }, now - (14 - i * 5) * 60e3);
 }

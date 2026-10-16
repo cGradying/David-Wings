@@ -16,7 +16,7 @@ const I = {
 };
 
 const S = {
-  view: 'home', menu: null, flavors: [], top: [], orders: [], filter: 'all', cat: 'Wings', cart: new Map(),
+  view: 'home', menu: null, flavors: [], top: [], orders: [], filter: 'all', cat: 'Rice Bowl', cart: new Map(),
   pay: null, cards: null, settings: {}, ledgerTab: 'insights', range: 7, date: today(), armed: null, locked: false,
   chips: new Set(), salesQ: '', openSale: null, voidFor: null, ledger: null, today: today(),
 };
@@ -119,7 +119,7 @@ async function next() {
 /* ---------- data ---------- */
 async function load() {
   const [m, o, s] = await Promise.all([api('/menu'), api('/orders'), api('/settings')]);
-  S.menu = m.items; S.flavors = m.flavors; S.top = m.top; S.orders = o; S.settings = s;
+  S.menu = m.items; S.flavors = m.flavors; S.best = m.best ?? []; S.top = m.top; S.orders = o; S.settings = s;
   applyTheme();
 }
 
@@ -152,7 +152,6 @@ $('#queue').addEventListener('click', guard(async (e) => {
 }));
 
 /* ---------- order builder ---------- */
-const CATS = ['Wings', 'Combos', 'Sides', 'Drinks'];
 function tile(m, star) {
   const q = qtyOf(m.id);
   const stepper = q > 0 && !m.flavored ? `<div class="step"><button data-dec="${m.id}" aria-label="Remove one ${esc(m.name)}">−</button><span class="v num">${q}</span><button class="p" data-inc="${m.id}" aria-label="Add one ${esc(m.name)}">+</button></div>` : '';
@@ -167,7 +166,7 @@ function renderOrder() {
   $('#main').innerHTML = `<div class="live" aria-live="polite"><div><div class="lbl">Total</div><div class="amt num">${peso(t)}</div></div>
       <div class="cnt">${c} item${c === 1 ? '' : 's'}${S.view === 'home' ? `<button class="charge" data-charge ${c ? '' : 'disabled'}>Charge ${I.check}</button>` : ''}</div></div>
     <div class="section-title">Top sellers</div><div class="grid">${top.map((m) => tile(m, true)).join('')}</div>
-    <div class="tabs" role="tablist">${CATS.map((k) => `<button class="tab" role="tab" data-cat="${k}" aria-selected="${S.cat === k}">${k}</button>`).join('')}</div>
+    <div class="tabs" role="tablist">${[...new Set(S.menu.map((m) => m.category))].map((k) => `<button class="tab" role="tab" data-cat="${k}" aria-selected="${S.cat === k}">${k}</button>`).join('')}</div>
     <div class="grid">${grid.map((m) => tile(m)).join('')}</div>`;
 }
 function refreshMain() {
@@ -203,7 +202,7 @@ function sheet(html, onClose) {
 }
 function flavorSheet(m) {
   const body = () => `<h2>${esc(m.name)}</h2><p class="sub num">${peso(m.price)} each · pick flavors</p>
-    ${S.flavors.map((f) => { const q = S.cart.get(key(m.id, f)) ?? 0; return `<div class="frow"><span class="nm">${esc(f)}</span>
+    ${S.flavors.map((f) => { const q = S.cart.get(key(m.id, f)) ?? 0; return `<div class="frow"><span class="nm">${esc(f)}${S.best?.includes(f) ? ' <span class="muted">★ best seller</span>' : ''}</span>
       <div class="step"><button data-fd="${esc(f)}" aria-label="Remove ${esc(f)}">−</button><span class="v num">${q}</span><button class="p" data-fi="${esc(f)}" aria-label="Add ${esc(f)}">+</button></div></div>`; }).join('')}
     <button class="btn" data-close>Done · ${qtyOf(m.id)} added</button>`;
   const s = sheet(body(), refreshMain);
@@ -291,7 +290,7 @@ async function renderInsights() {
         <details><summary>View as table</summary><table><tr><th>Day</th><th>Orders</th><th>Sales</th></tr>${st.series.map((d) => `<tr><td>${dShort(d.day)}</td><td class="num">${d.orders}</td><td class="num">${peso(d.sales)}</td></tr>`).join('')}</table></details></div>
       <div class="chart"><h3>Busiest hours</h3><div class="cap">Orders by hour of day</div>${hourChart(st.hourly)}</div>
       <div class="chart"><h3>Top sellers</h3><div class="cap">Units sold</div>${hbars(st.items, 'sold')}</div>
-      <div class="chart"><h3>Flavor popularity</h3><div class="cap">Wings and combos by flavor</div>${hbars(st.flavors, 'sold')}</div>
+      <div class="chart"><h3>Flavor popularity</h3><div class="cap">Bowls, wings and party packs by flavor</div>${hbars(st.flavors, 'sold')}</div>
       <div class="chart"><h3>How customers pay</h3><div class="cap">Share of sales</div>${splitBar(st.methods, ['cash', 'gcash'], ['var(--c1)', 'var(--c2)']).replace('>cash<', '>Cash<').replace('>gcash<', '>GCash<')}
         <div class="cap" style="margin-top:18px">Dine-in vs take-out</div>${splitBar(st.types, ['dine-in', 'take-out'], ['var(--c1)', 'var(--c2)']).replace('>dine-in<', '>Dine-in<').replace('>take-out<', '>Take-out<')}</div>
     </div>`;
@@ -412,7 +411,7 @@ function renderSettings() {
       <input type="file" id="restorefile" accept=".json,application/json" hidden>
       <button class="btn alt" data-csv style="margin-top:10px">Export sales as CSV</button></div>
     <details class="box howto"><summary>How to operate &amp; diagnose</summary><ol style="margin-top:8px">
-      <li>Tap <b>+</b>, tap items. Wings ask for a flavor. The total runs at the top.</li><li>Tap ✓, pick dine-in or take-out, pick the card you hand over.</li>
+      <li>Tap <b>+</b>, tap items. Chicken items ask for a flavor. The total runs at the top.</li><li>Tap ✓, pick dine-in or take-out, pick the card you hand over.</li>
       <li>Cash: tap the amount paid. Change shows instantly. GCash: customer scans the QR.</li><li>Tap ✓ to take the order. It appears under <b>Now preparing</b>.</li>
       <li>When food is handed over, tap ✓ on the order twice. The card number frees up.</li><li>Wrong sale? Ledger → Sales → tap it → Void.</li>
       <li>Nothing loads? Check the ledger server is running, then reload. Data is in <code>data/ledger.db</code>.</li></ol></details>
