@@ -4,6 +4,9 @@ const $ = (s) => document.querySelector(s);
 const peso = (n) => '₱' + Number(n).toLocaleString('en-PH');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const calm = matchMedia('(prefers-reduced-motion: reduce)');
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+document.addEventListener('touchstart', () => {}, { passive: true });
 const landscape = () => matchMedia('(orientation: landscape) and (min-width: 900px)').matches;
 
 const I = {
@@ -18,7 +21,7 @@ const I = {
 const S = {
   view: 'home', menu: null, flavors: [], top: [], orders: [], filter: 'all', cat: 'Rice Bowl', cart: new Map(),
   pay: null, cards: null, settings: {}, ledgerTab: 'insights', range: 7, date: today(), armed: null, locked: false,
-  chips: new Set(), salesQ: '', openSale: null, voidFor: null, ledger: null, today: today(),
+  chips: new Set(), salesQ: '', openSale: null, voidFor: null, ledger: null, today: today(), bumped: null, fresh: null,
 };
 
 // The Android build installs window.__transport to call the in-app core instead of a server.
@@ -70,15 +73,35 @@ function bump(id, fl, d) {
 }
 
 /* ---------- navigation / bar ---------- */
-function go(view) { S.view = view; S.armed = null; render(); }
+function go(view) { S.view = view; S.armed = null; if (view === 'order' || view === 'home') shownTotal = total(); render(); }
+let shownTotal = 0, rollRaf;
+function rollTo(el, from, to) {
+  cancelAnimationFrame(rollRaf);
+  if (calm.matches || from === to) { el.textContent = peso(to); return; }
+  const t0 = performance.now();
+  const step = (now) => {
+    const p = Math.min(1, (now - t0) / 180);
+    el.textContent = peso(Math.round(from + (to - from) * (1 - (1 - p) ** 3)));
+    if (p < 1) rollRaf = requestAnimationFrame(step);
+  };
+  rollRaf = requestAnimationFrame(step);
+}
+function undoToast(msg, onUndo) {
+  document.querySelector('.toast')?.remove();
+  const el = Object.assign(document.createElement('div'), { className: 'toast undo cancel', role: 'status' });
+  el.innerHTML = `<span>${esc(msg)}</span><button data-undo>Undo</button>`;
+  document.body.append(el);
+  const timer = setTimeout(() => el.remove(), 5000);
+  el.querySelector('[data-undo]').onclick = () => { clearTimeout(timer); el.remove(); onUndo(); };
+}
 function renderBar() {
   const brand = '<div class="brand">Ledger Information<b>David Wings</b></div>';
   const cur = (v) => (S.view === v ? ' aria-current="page"' : '');
   if (S.view === 'order' || S.view === 'pay') {
     const ok = S.view === 'order' ? count() > 0 : payValid();
-    $('#bar').innerHTML = `${brand}<button class="nbtn x" data-a="cancel" aria-label="Cancel order">${I.x}</button>
+    $('#bar').innerHTML = `<button class="nbtn x" data-a="cancel" aria-label="Cancel order">${I.x}</button><span class="spacer"></span>
       <button class="nbtn" data-a="back" aria-label="Back">${I.back}</button>
-      <button class="nbtn go" data-a="next" aria-label="${S.view === 'order' ? 'Go to payment' : 'Confirm payment'}" ${ok ? '' : 'disabled'}>${I.check}</button>`;
+      <button class="nbtn go wide" data-a="next" aria-label="${S.view === 'order' ? 'Go to payment' : 'Confirm payment'}" ${ok ? '' : 'disabled'}>${I.check}<span>${S.view === 'order' ? 'Charge ' + peso(total()) : 'Confirm'}</span></button>`;
   } else {
     $('#bar').innerHTML = `${brand}<button class="nbtn"${cur('settings')} data-a="settings" aria-label="Settings${backupDue() ? ' (backup due)' : ''}">${I.gear}${backupDue() ? '<i class="dot"></i>' : ''}</button>
       <button class="nbtn"${cur('ledger')} data-a="ledger" aria-label="Ledger">${I.list}</button>
@@ -89,8 +112,13 @@ $('#bar').addEventListener('click', guard(async (e) => {
   const a = e.target.closest('[data-a]')?.dataset.a;
   if (!a) return;
   if (a === 'settings' || a === 'ledger') go(S.view === a ? 'home' : a);
-  else if (a === 'new') { S.cart.clear(); S.pay = null; go('order'); }
-  else if (a === 'cancel') { S.cart.clear(); S.pay = null; go('home'); }
+  else if (a === 'new') { document.querySelector('.toast.cancel')?.remove(); S.cart.clear(); S.pay = null; go('order'); }
+  else if (a === 'cancel') {
+    if (!count()) { S.cart.clear(); S.pay = null; return go('home'); }
+    const cart = new Map(S.cart), pay = S.pay;
+    S.cart.clear(); S.pay = null; go('home');
+    undoToast('Order cancelled', () => { S.cart = cart; S.pay = pay; go('order'); });
+  }
   else if (a === 'back') go(S.view === 'pay' ? 'order' : 'home');
   else if (a === 'next') await next();
 }));
@@ -108,11 +136,11 @@ async function next() {
     const o = await api('/orders', { method: 'POST', body: {
       items: cartLines().map(({ item_id, flavor, qty }) => ({ item_id, flavor, qty })),
       type: p.type, card: p.card, method: p.method, tendered: p.method === 'cash' ? Number(p.tendered) : due, gcash_ref: p.ref } });
-    S.cart.clear(); S.pay = null; S.view = 'home';
+    S.cart.clear(); S.pay = null; S.view = 'home'; S.fresh = o.id;
     await load(); render();
     sheet(`<h2>Card ${o.card} · Order #${String(o.ref).padStart(3, '0')}</h2><p class="sub">${peso(o.total)} paid by ${o.method === 'cash' ? 'cash' : 'GCash'}</p>
       ${o.change > 0 ? `<div class="change"><span class="lbl">Give change</span><span class="amt num">${peso(o.change)}</span></div>` : '<div class="change"><span class="lbl">No change due</span></div>'}
-      <button class="btn" data-close>Next order</button>`);
+      <button class="btn" data-close>Next order</button>`, null, 'is-done');
   } finally { S.locked = false; }
 }
 
@@ -132,83 +160,111 @@ function renderQueue() {
   $('#queue').innerHTML = `<div class="panel-head"><div class="badge-count num">${S.orders.length}</div><h1>Now preparing</h1></div>
     <div class="tabs">${tab('all', 'All')}${tab('dine-in', 'Dine-in')}${tab('take-out', 'Take-out')}</div>
     <div class="orders">${list.map((o) => `
-      <article class="order">
+      <article class="order${o.id === S.fresh ? ' is-enter' : ''}">
         <div class="cardno num"><small>Card</small><span>${o.card}</span></div>
         <div class="lines">${o.items.map((i) => `${i.qty}× ${esc(i.name)}${i.flavor ? ` <span class="muted">${esc(i.flavor)}</span>` : ''}`).join('<br>')}</div>
-        <button class="donebtn" data-done="${o.id}" aria-label="Mark card ${o.card} done" ${S.armed === o.id ? 'style="background:var(--ok);color:#fff"' : ''}>${I.check}</button>
+        <button class="donebtn${S.armed === o.id ? ' armed' : ''}" data-done="${o.id}" aria-label="Mark card ${o.card} done">${I.check}${S.armed === o.id ? '<span>Tap again</span>' : ''}</button>
         <div class="meta"><span class="chip ${o.type === 'take-out' ? 'take' : ''}">${o.type}</span><span>#${String(o.ref).padStart(3, '0')} · ${ago(o.created_at)}</span><span class="num">${peso(o.total)}</span></div>
       </article>`).join('') || `<div class="empty"><b>Nothing cooking</b>Tap + to take an order.</div>`}</div>`;
+  S.fresh = null;
 }
 $('#queue').addEventListener('click', guard(async (e) => {
   const f = e.target.closest('[data-f]')?.dataset.f;
-  if (f) { S.filter = f; return renderQueue(); }
+  if (f) { S.filter = f; renderQueue(); $('#queue .orders')?.classList.add('is-swap'); return; }
   const d = e.target.closest('[data-done]')?.dataset.done;
   if (!d) return;
   const id = Number(d);
   if (S.armed !== id) { S.armed = id; renderQueue(); toast('Tap ✓ again to finish'); setTimeout(() => { if (S.armed === id) { S.armed = null; renderQueue(); } }, 3500); return; }
   S.armed = null;
-  await api(`/orders/${id}/done`, { method: 'POST', body: {} });
+  e.target.closest('.order')?.classList.add('is-leaving');
+  await Promise.all([api(`/orders/${id}/done`, { method: 'POST', body: {} }), wait(calm.matches ? 0 : 180)]);
   await load(); renderQueue(); refreshMain();
 }));
 
 /* ---------- order builder ---------- */
 function tile(m, star) {
   const q = qtyOf(m.id);
-  const stepper = q > 0 && !m.flavored ? `<div class="step"><button data-dec="${m.id}" aria-label="Remove one ${esc(m.name)}">−</button><span class="v num">${q}</span><button class="p" data-inc="${m.id}" aria-label="Add one ${esc(m.name)}">+</button></div>` : '';
+  const stepper = q > 0 && !m.flavored ? `<div class="step"><button data-dec="${m.id}" aria-label="Remove one ${esc(m.name)}">−</button><span class="v num${m.id === S.bumped ? ' is-bump' : ''}">${q}</span><button class="p" data-inc="${m.id}" aria-label="Add one ${esc(m.name)}">+</button></div>` : '';
   return `<div class="tile ${q ? 'sel' : ''} ${m.available ? '' : 'off'}" role="button" tabindex="0" data-tile="${m.id}" aria-label="${esc(m.name)} ${peso(m.price)}">
-    ${q ? `<span class="q num">${q}</span>` : ''}${star && !q ? '<span class="star" aria-hidden="true">★</span>' : ''}
+    ${q ? `<span class="q num${m.id === S.bumped ? ' is-bump' : ''}">${q}</span>` : ''}${star && !q ? '<span class="star" aria-hidden="true">★</span>' : ''}
     <span class="nm">${esc(m.name)}</span><span class="pr num">${peso(m.price)}${m.flavored ? ' · pick flavor' : ''}</span>${stepper}</div>`;
 }
 function renderOrder() {
   const top = S.top.map((t) => item(t.item_id)).filter((m) => m?.available).slice(0, 4);
   const grid = S.menu.filter((m) => m.category === S.cat);
   const t = total(), c = count();
-  $('#main').innerHTML = `<div class="live" aria-live="polite"><div><div class="lbl">Total</div><div class="amt num">${peso(t)}</div></div>
+  $('#main').innerHTML = `<div class="live"><div><div class="lbl">Total</div><div class="amt num" aria-hidden="true">${peso(shownTotal)}</div><span class="sr-only" aria-live="polite">${peso(t)}</span></div>
       <div class="cnt">${c} item${c === 1 ? '' : 's'}${S.view === 'home' ? `<button class="charge" data-charge ${c ? '' : 'disabled'}>Charge ${I.check}</button>` : ''}</div></div>
     <div class="section-title">Top sellers</div><div class="grid">${top.map((m) => tile(m, true)).join('')}</div>
     <div class="tabs" role="tablist">${[...new Set(S.menu.map((m) => m.category))].map((k) => `<button class="tab" role="tab" data-cat="${k}" aria-selected="${S.cat === k}">${k}</button>`).join('')}</div>
     <div class="grid">${grid.map((m) => tile(m)).join('')}</div>`;
+  const amt = $('#main .live .amt');
+  if (t !== shownTotal) amt.classList.add('is-bump');
+  rollTo(amt, shownTotal, t); shownTotal = t;
 }
 function refreshMain() {
   const st = $('#main').scrollTop;
   if (S.view === 'order' || (S.view === 'home' && landscape())) renderOrder();
   $('#main').scrollTop = st;
+  S.bumped = null;
   renderBar();
 }
 $('#main').addEventListener('click', guard(async (e) => {
   const t = e.target;
   if (t.closest('[data-charge]')) { if (count()) { S.view = 'order'; await next(); } return; }
   const cat = t.closest('[data-cat]')?.dataset.cat;
-  if (cat) { S.cat = cat; return renderOrder(); }
+  if (cat) { S.cat = cat; renderOrder(); $('#main').querySelectorAll('.grid')[1]?.classList.add('is-swap'); return; }
   const inc = t.closest('[data-inc]')?.dataset.inc, dec = t.closest('[data-dec]')?.dataset.dec;
-  if (inc || dec) { bump(Number(inc ?? dec), undefined, inc ? 1 : -1); return refreshMain(); }
+  if (inc || dec) { S.bumped = Number(inc ?? dec); bump(S.bumped, undefined, inc ? 1 : -1); return refreshMain(); }
   const tl = t.closest('[data-tile]')?.dataset.tile;
   if (tl) {
     const m = item(Number(tl));
-    if (m.flavored) return flavorSheet(m);
-    bump(m.id, undefined, 1); return refreshMain();
+    if (m.flavored) return m.category === 'Party' ? partySheet(m) : flavorSheet(m);
+    S.bumped = m.id; bump(m.id, undefined, 1); return refreshMain();
   }
   await mainClick(e);
 }));
 $('#main').addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-tile]')) { e.preventDefault(); e.target.click(); } });
 
 /* ---------- sheets ---------- */
-function sheet(html, onClose) {
+function dismiss(s, onClose) {
+  if (s.classList.contains('is-closing')) return;
+  s.classList.add('is-closing');
+  if (calm.matches) s.remove(); else { s.addEventListener('animationend', () => s.remove(), { once: true }); setTimeout(() => s.remove(), 200); }
+  onClose?.();
+}
+function sheet(html, onClose, cls = '') {
   document.querySelector('.scrim')?.remove();
-  const s = Object.assign(document.createElement('div'), { className: 'scrim', innerHTML: `<div class="sheet" role="dialog" aria-modal="true">${html}</div>` });
-  s.addEventListener('click', (e) => { if (e.target === s || e.target.closest('[data-close]')) { s.remove(); onClose?.(); } });
+  const s = Object.assign(document.createElement('div'), { className: 'scrim', innerHTML: `<div class="sheet ${cls}" role="dialog" aria-modal="true">${html}</div>` });
+  s.addEventListener('click', (e) => { if (e.target === s || e.target.closest('[data-close]')) dismiss(s, onClose); });
   document.body.append(s);
   return s;
 }
+// One tap of "Add pack" = one pack with the ticked flavors (up to 3) split across it.
+function partySheet(m) {
+  const pick = new Set();
+  const body = () => `<h2>${esc(m.name)}</h2><p class="sub num">${peso(m.price)} per pack · tick up to 3 flavors to split</p>
+    ${S.flavors.map((f) => `<label class="frow"><span class="nm">${esc(f)}${S.best?.includes(f) ? ' <span class="muted">★ best seller</span>' : ''}</span>
+      <input type="checkbox" data-pf="${esc(f)}" ${pick.has(f) ? 'checked' : ''} ${!pick.has(f) && pick.size >= 3 ? 'disabled' : ''} style="width:28px;height:28px"></label>`).join('')}
+    <button class="btn" data-addpack ${pick.size ? '' : 'disabled'}>Add pack${pick.size ? ` · ${[...pick].join(' + ')}` : ''}</button>
+    <button class="btn" data-close>Done · <b class="pk">${qtyOf(m.id)}</b> pack${qtyOf(m.id) === 1 ? '' : 's'}</button>`;
+  const s = sheet(body(), refreshMain);
+  const redraw = () => { s.querySelector('.sheet').innerHTML = body(); };
+  s.addEventListener('change', (e) => { const f = e.target.dataset.pf; if (f) { pick.has(f) ? pick.delete(f) : pick.add(f); redraw(); } });
+  s.addEventListener('click', (e) => {
+    if (e.target.closest('[data-addpack]') && pick.size) { bump(m.id, S.flavors.filter((f) => pick.has(f)).join(' + '), 1); pick.clear(); redraw(); s.querySelector('.pk')?.classList.add('is-bump'); s.querySelector('[data-addpack]')?.classList.add('is-bump'); }
+  });
+}
 function flavorSheet(m) {
+  let hot = null;
   const body = () => `<h2>${esc(m.name)}</h2><p class="sub num">${peso(m.price)} each · pick flavors</p>
     ${S.flavors.map((f) => { const q = S.cart.get(key(m.id, f)) ?? 0; return `<div class="frow"><span class="nm">${esc(f)}${S.best?.includes(f) ? ' <span class="muted">★ best seller</span>' : ''}</span>
-      <div class="step"><button data-fd="${esc(f)}" aria-label="Remove ${esc(f)}">−</button><span class="v num">${q}</span><button class="p" data-fi="${esc(f)}" aria-label="Add ${esc(f)}">+</button></div></div>`; }).join('')}
+      <div class="step"><button data-fd="${esc(f)}" aria-label="Remove ${esc(f)}">−</button><span class="v num${f === hot ? ' is-bump' : ''}">${q}</span><button class="p" data-fi="${esc(f)}" aria-label="Add ${esc(f)}">+</button></div></div>`; }).join('')}
     <button class="btn" data-close>Done · ${qtyOf(m.id)} added</button>`;
   const s = sheet(body(), refreshMain);
   s.addEventListener('click', (e) => {
     const fi = e.target.closest('[data-fi]')?.dataset.fi, fd = e.target.closest('[data-fd]')?.dataset.fd;
-    if (fi || fd) { bump(m.id, fi ?? fd, fi ? 1 : -1); s.querySelector('.sheet').innerHTML = body(); }
+    if (fi || fd) { hot = fi ?? fd; bump(m.id, hot, fi ? 1 : -1); s.querySelector('.sheet').innerHTML = body(); hot = null; }
   });
 }
 
@@ -306,7 +362,7 @@ function barChart(series) {
     const path = h ? `M${x},${y(0)} v${-(h - r)} a${r},${r} 0 0 1 ${r},${-r} h${w - 2 * r} a${r},${r} 0 0 1 ${r},${r} v${h - r} z` : '';
     return `<path d="${path}" fill="var(--c1)" opacity="${isToday ? 1 : 0.55}"/>
       <rect x="${L + i * bw}" y="${T}" width="${bw}" height="${H - T - B}" fill="transparent" data-tip="${dShort(d.day)}: ${peso(d.sales)} · ${d.orders} orders"/>
-      ${n <= 14 || i % 5 === n % 5 || isToday ? `<text x="${x + w / 2}" y="${H - 9}" text-anchor="middle">${n <= 14 ? dShort(d.day).replace(/^(\w)\w+ /, '$1 ') : new Date(d.day + 'T00:00').getDate()}</text>` : ''}
+      ${n <= 14 || i % 5 === n % 5 || isToday ? `<text x="${x + w / 2}" y="${H - 9}" text-anchor="middle">${n <= 14 ? new Date(d.day + 'T00:00').toLocaleDateString('en-PH', { weekday: 'narrow', day: 'numeric' }).replace(/^(\d+)\s*(.*)$/, '$2 $1') : new Date(d.day + 'T00:00').getDate()}</text>` : ''}
       ${i === maxI || isToday ? `<text class="val" x="${x + w / 2}" y="${y(d.sales) - 6}" text-anchor="middle">${peso(d.sales)}</text>` : ''}`;
   }).join('');
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily sales bar chart">${grid}${bars}</svg>`;
@@ -372,12 +428,12 @@ function closeSheet() {
     if (f != null) body.float = f; if (cc != null) body.counted = cc;
     if (!Object.keys(body).length) throw new Error('Enter the float or the counted cash');
     await api('/close/' + l.day, { method: 'POST', body });
-    s.remove(); toast(cc != null ? 'Day closed' : 'Float saved'); await renderSales();
+    dismiss(s); toast(cc != null ? 'Day closed' : 'Float saved'); await renderSales();
   }));
 }
 async function ledgerClick(t) {
   const lt = t.closest('[data-lt]')?.dataset.lt, r = t.closest('[data-range]')?.dataset.range, sale = t.closest('[data-sale]')?.dataset.sale;
-  if (lt) { S.ledgerTab = lt; return renderLedger(); }
+  if (lt) { S.ledgerTab = lt; await renderLedger(); $('#lbody')?.classList.add('is-swap'); return; }
   if (r) { S.range = Number(r); return renderLedger(); }
   if (t.closest('[data-today]')) { S.date = today(); return renderLedger(); }
   if (S.ledgerTab !== 'sales') return;
@@ -451,7 +507,7 @@ document.addEventListener('change', guard(async (e) => {
     let dump; try { dump = JSON.parse(text); } catch { throw new Error('That is not a backup file'); }
     const n = dump?.tables?.orders?.length ?? 0;
     const sh = sheet(`<h2>Restore this backup?</h2><p class="sub">It replaces <b>all</b> current orders, menu and settings with the file's ${n} orders. This cannot be undone.</p><button class="btn danger" id="dorestore">Replace everything</button><button class="btn alt" data-close>Cancel</button>`);
-    sh.querySelector('#dorestore').addEventListener('click', guard(async () => { await api('/restore', { method: 'POST', body: dump }); sh.remove(); await load(); toast('Backup restored'); render(); }));
+    sh.querySelector('#dorestore').addEventListener('click', guard(async () => { await api('/restore', { method: 'POST', body: dump }); dismiss(sh); await load(); toast('Backup restored'); render(); }));
     return;
   }
   if (e.target.id === 'qrfile' && e.target.files[0]) { await save({ gcash_qr: await downscale(e.target.files[0]) }); return renderSettings(); }

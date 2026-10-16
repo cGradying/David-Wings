@@ -104,7 +104,9 @@ export async function createOrder(db, body, at = Date.now()) {
     const qty = Number(it.qty);
     if (!m || !m.available) throw bad('Item unavailable');
     if (!Number.isInteger(qty) || qty < 1 || qty > 99) throw bad('Bad quantity');
-    if (m.flavored && !flavors.includes(it.flavor)) throw bad(`Pick a flavor for ${m.name}`);
+    // A party pack may split its flavors: "Salted Egg + Garlic Parmesan" (max 3, each a known flavor).
+    const parts = String(it.flavor ?? '').split(' + ');
+    if (m.flavored && !(parts.every((f) => flavors.includes(f)) && (m.category === 'Party' ? parts.length <= 3 && new Set(parts).size === parts.length : parts.length === 1))) throw bad(`Pick a flavor for ${m.name}`);
     total += m.price * qty;
     lines.push({ m, qty, flavor: m.flavored ? it.flavor : null });
   }

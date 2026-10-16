@@ -1,0 +1,66 @@
+/* Motion layer. transform + opacity only, nothing over 300ms. Tokens fall back until style.css defines them. */
+:root {
+  --m-out: var(--ease-out, cubic-bezier(.2, .8, .2, 1));
+  --m-in: var(--ease-in, cubic-bezier(.4, 0, 1, 1));
+  --m-pop: var(--ease-pop, cubic-bezier(.34, 1.56, .64, 1));
+  --m-std: var(--ease-std, cubic-bezier(.4, 0, .2, 1));
+}
+
+/* 1. press */
+.tile, .btn, .nbtn, .key, .card, .step button, .seg button, .quick button, .tab, .charge, .donebtn {
+  transition: transform 120ms var(--m-out);
+}
+.tile:active, .btn:active, .nbtn:active, .key:active, .card:active, .step button:active,
+.seg button:active, .quick button:active, .tab:active, .charge:active, .donebtn:active {
+  transform: scale(.96);
+  transition-duration: 80ms;
+}
+
+/* 2, 9. count bump */
+@keyframes m-bump { from { transform: scale(1.25); } to { transform: scale(1); } }
+.is-bump { animation: m-bump 160ms var(--m-pop); }
+.pk { display: inline-block; }
+/* 3. total pulse */
+@keyframes m-pulse { from { transform: scale(1.06); } to { transform: scale(1); } }
+.live .amt.is-bump { animation: m-pulse 180ms var(--m-out); }
+/* 9. add pack button */
+@keyframes m-press { from { transform: scale(.96); } to { transform: scale(1); } }
+[data-addpack].is-bump { animation: m-press 160ms var(--m-pop); }
+
+/* 4. sheet */
+@keyframes m-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes m-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes m-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes m-down { from { transform: translateY(0); } to { transform: translateY(100%); } }
+.scrim { animation: m-fade-in 160ms var(--m-out); }
+.sheet { animation: m-up 220ms var(--m-out); }
+.scrim.is-closing { pointer-events: none; animation: m-fade-out 160ms var(--m-in) forwards; }
+.scrim.is-closing .sheet { animation: m-down 160ms var(--m-in) forwards; }
+
+/* 5. order finish */
+@keyframes m-done-amt { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.sheet.is-done .change .amt { animation: m-done-amt 240ms var(--m-pop) 60ms backwards; }
+.sheet.is-done h2 { animation: m-fade-in 240ms var(--m-out); }
+
+/* 6, 7. queue enter / exit */
+@keyframes m-enter { from { transform: translateY(-8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes m-leave { from { transform: none; opacity: 1; } to { transform: translateX(24px) scale(.98); opacity: 0; } }
+.order.is-enter { animation: m-enter 200ms var(--m-out); }
+.order.is-leaving { pointer-events: none; animation: m-leave 180ms var(--m-in) forwards; }
+
+/* 8. tab swap */
+@keyframes m-swap { from { transform: translateY(4px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.is-swap { animation: m-swap 140ms var(--m-std); }
+
+/* 10. toast */
+@keyframes m-toast { from { transform: translate(-50%, 12px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+.toast { animation: m-toast 160ms var(--m-out); }
+
+/* 11. switch thumb */
+.switch::after { transition: transform 160ms var(--m-out); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .tile:active, .btn:active, .nbtn:active, .key:active, .card:active, .step button:active,
+  .seg button:active, .quick button:active, .tab:active, .charge:active, .donebtn:active { transform: none; }
+}

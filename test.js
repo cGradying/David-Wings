@@ -25,11 +25,17 @@ await fails(createOrder(db, { ...base, card: 29, items: [{ item_id: 1, qty: 1 }]
 assert.equal(await count(), before + 1, 'failed orders leave nothing behind');
 assert.equal((await db.get('SELECT COUNT(*) AS n FROM order_items WHERE order_id IS NULL')).n, 0);
 
+const party = (await db.get("SELECT id FROM menu_items WHERE name = 'Party 20pcs'")).id;
+const sp = await createOrder(db, { items: [{ item_id: party, qty: 1, flavor: 'Salted Egg + Garlic Parmesan' }], type: 'take-out', method: 'gcash', card: 28 });
+assert.equal(sp.total, 680, 'split pack priced once');
+await fails(createOrder(db, { items: [{ item_id: party, qty: 1, flavor: 'Salted Egg + Salted Egg' }], type: 'take-out', method: 'gcash', card: 27 }), /flavor/, 'dup split blocked');
+await fails(createOrder(db, { ...base, card: 27, items: [{ item_id: 1, qty: 1, flavor: 'Salted Egg + Honey Barbeque' }] }), /flavor/, 'bowl cannot split');
+await closeOrder(db, sp.id, 'done');
 await closeOrder(db, o.id, 'void', 'wrong order');
 assert.ok(!(await cardState(db)).used.includes(o.card), 'void frees card');
 await fails(closeOrder(db, o.id, 'void', 'x'), /already void/);
 const o2 = await createOrder(db, { ...base, card: o.card });
-assert.equal(o2.ref, o.ref + 1, 'ref keeps counting');
+assert.equal(o2.ref, sp.ref + 1, 'ref keeps counting');
 await closeOrder(db, o2.id, 'done');
 assert.ok(!(await cardState(db)).used.includes(o.card), 'done frees card');
 

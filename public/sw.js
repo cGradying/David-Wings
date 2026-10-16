@@ -1,5 +1,5 @@
-const CACHE = 'dw-ledger-v1';
-const SHELL = ['/', '/style.css', '/app.js', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
+const CACHE = 'dw-ledger-v2';
+const SHELL = ['/', '/style.css', '/app.js', '/sales.js', '/motion.css', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener('activate', (e) =>

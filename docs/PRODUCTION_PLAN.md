@@ -21,7 +21,7 @@ Flavors: David's Classic Buffalo, Salted Egg, Salt and Pepper, Honey Barbeque*, 
 1. **Release signing + install**: release keystore, signed APK/AAB, Play Store or sideloaded APK.
 2. **Receipt printing**: Bluetooth/USB thermal printer or share-as-PDF.
 3. **Scheduled backup reminder**: a notification on a timer; today there is only a "Due" tag after 7 days.
-4. **Party-pack split-flavor handling**: the flavor sheet adds a quantity per flavor, which multiplies the price. It needs a per-pack split so a 20/30/50 pc pack is priced once, with flavors divided inside it.
+4. ~~Party-pack split-flavor handling~~ Done in v1.1: a pack is priced once, up to 3 flavors split inside it.
 5. **D1 `database_id` setup**: create the D1 database and paste the id into `wrangler.toml`, then configure Access (`ACCESS_TEAM`, `ACCESS_AUD`).
 6. **Confirm the 50 pc party price** (1710 vs 1770) with the shop.
 7. **Pitch other shops**: see `docs/research/`.

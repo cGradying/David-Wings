@@ -1,6 +1,6 @@
 {
   "name": "david-wings-ledger",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Offline cashier ledger for David's Wings and Cafe (boneless wings). One cashier, one tablet (portrait or landscape), real SQLite database.",
   "main": "server.js",
   "directories": {

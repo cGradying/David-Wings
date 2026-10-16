@@ -14,7 +14,7 @@ The tablet and online copies are independent; move data between them with Back u
 
 ## 1. Android tablet, fully offline
 
-Build once on a Mac with JDK 21 and the Android SDK:
+Build once on a Mac with JDK 21 (set `JAVA_HOME`; JDK 17 fails with "invalid source release: 21") and the Android SDK:
 
 ```
 npm install
