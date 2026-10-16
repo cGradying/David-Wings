@@ -19,7 +19,7 @@ Flavors: David's Classic Buffalo, Salted Egg, Salt and Pepper, Honey Barbeque*, 
 
 ## Roadmap
 1. **Release signing + install**: release keystore, signed APK/AAB, Play Store or sideloaded APK.
-2. **Receipt printing**: Bluetooth/USB thermal printer or share-as-PDF.
+2. **Receipts, phased** (concept in `docs/RECEIPT_CONCEPT.md`): v1.2 on-screen receipt, view only; v1.3 share as image; v1.4 ESC/POS 58mm Bluetooth printing (plugin and printer to evaluate with the founder's hardware).
 3. **Scheduled backup reminder**: a notification on a timer; today there is only a "Due" tag after 7 days.
 4. ~~Party-pack split-flavor handling~~ Done in v1.1: a pack is priced once, up to 3 flavors split inside it.
 5. **D1 `database_id` setup**: create the D1 database and paste the id into `wrangler.toml`, then configure Access (`ACCESS_TEAM`, `ACCESS_AUD`).

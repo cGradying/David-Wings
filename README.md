@@ -10,7 +10,7 @@ One codebase, three ways to run it. All share the same rules (`core/`) and the s
 | **Dev / desktop** | `data/ledger.db` | Node 22+ |
 | **Online** (optional) | Cloudflare D1, behind a login | free Cloudflare account |
 
-The tablet and online copies are independent; move data between them with Back up / Restore (see `docs/adr/0001`). Vocabulary (Order, Sale, Void, Card, Ref, Day close) is in `CONTEXT.md`.
+The tablet and online copies are independent; move data between them with Back up / Restore (see `docs/adr/0001`). Flow: order -> cart -> pay -> receipt. The receipt is view-only, planned for v1.2 (`docs/RECEIPT_CONCEPT.md`); printing comes later. Vocabulary (Order, Sale, Void, Card, Ref, Day close) is in `CONTEXT.md`.
 
 ## 1. Android tablet, fully offline
 
@@ -52,6 +52,7 @@ Then in the Cloudflare dashboard: Zero Trust > Access > Applications > add a sel
 
 - [Architecture diagram](docs/architecture.html)
 - [Production plan](docs/PRODUCTION_PLAN.md)
+- [Receipt concept](docs/RECEIPT_CONCEPT.md) (planned, not built)
 - [Research](docs/research/) (pitching other shops)
 - [ADRs](docs/adr/)
 

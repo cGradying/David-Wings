@@ -1,4 +1,6 @@
 import { salesHtml } from './sales.js';
+import { art } from './art.js';
+import { T } from './copy.js';
 
 const $ = (s) => document.querySelector(s);
 const peso = (n) => '₱' + Number(n).toLocaleString('en-PH');
@@ -15,13 +17,14 @@ const I = {
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5M11 5l-7 7 7 7"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
 };
 
 const S = {
   view: 'home', menu: null, flavors: [], top: [], orders: [], filter: 'all', cat: 'Rice Bowl', cart: new Map(),
   pay: null, cards: null, settings: {}, ledgerTab: 'insights', range: 7, date: today(), armed: null, locked: false,
-  chips: new Set(), salesQ: '', openSale: null, voidFor: null, ledger: null, today: today(), bumped: null, fresh: null,
+  receipt: null, chips: new Set(), salesQ: '', openSale: null, voidFor: null, ledger: null, today: today(), bumped: null, fresh: null,
 };
 
 // The Android build installs window.__transport to call the in-app core instead of a server.
@@ -89,7 +92,7 @@ function rollTo(el, from, to) {
 function undoToast(msg, onUndo) {
   document.querySelector('.toast')?.remove();
   const el = Object.assign(document.createElement('div'), { className: 'toast undo cancel', role: 'status' });
-  el.innerHTML = `<span>${esc(msg)}</span><button data-undo>Undo</button>`;
+  el.innerHTML = `<span>${esc(msg)}</span><button data-undo>${esc(T.undo)}</button>`;
   document.body.append(el);
   const timer = setTimeout(() => el.remove(), 5000);
   el.querySelector('[data-undo]').onclick = () => { clearTimeout(timer); el.remove(); onUndo(); };
@@ -97,11 +100,11 @@ function undoToast(msg, onUndo) {
 function renderBar() {
   const brand = '<div class="brand">Ledger Information<b>David Wings</b></div>';
   const cur = (v) => (S.view === v ? ' aria-current="page"' : '');
-  if (S.view === 'order' || S.view === 'pay') {
-    const ok = S.view === 'order' ? count() > 0 : payValid();
+  if (S.view === 'order' || S.view === 'cart' || S.view === 'pay') {
+    const ok = S.view === 'pay' ? payValid() : count() > 0;
     $('#bar').innerHTML = `<button class="nbtn x" data-a="cancel" aria-label="Cancel order">${I.x}</button><span class="spacer"></span>
       <button class="nbtn" data-a="back" aria-label="Back">${I.back}</button>
-      <button class="nbtn go wide" data-a="next" aria-label="${S.view === 'order' ? 'Go to payment' : 'Confirm payment'}" ${ok ? '' : 'disabled'}>${I.check}<span>${S.view === 'order' ? 'Charge ' + peso(total()) : 'Confirm'}</span></button>`;
+      <button class="nbtn go wide checkout" data-a="next" aria-label="${S.view === 'pay' ? 'Confirm payment' : T.checkout}" ${ok ? '' : 'disabled'}>${I.check}<span>${S.view === 'pay' ? 'Confirm' : T.checkout + ' ' + peso(total())}</span></button>`;
   } else {
     $('#bar').innerHTML = `${brand}<button class="nbtn"${cur('settings')} data-a="settings" aria-label="Settings${backupDue() ? ' (backup due)' : ''}">${I.gear}${backupDue() ? '<i class="dot"></i>' : ''}</button>
       <button class="nbtn"${cur('ledger')} data-a="ledger" aria-label="Ledger">${I.list}</button>
@@ -119,11 +122,12 @@ $('#bar').addEventListener('click', guard(async (e) => {
     S.cart.clear(); S.pay = null; go('home');
     undoToast('Order cancelled', () => { S.cart = cart; S.pay = pay; go('order'); });
   }
-  else if (a === 'back') go(S.view === 'pay' ? 'order' : 'home');
+  else if (a === 'back') go(S.view === 'pay' ? 'cart' : S.view === 'cart' ? 'order' : 'home');
   else if (a === 'next') await next();
 }));
 async function next() {
-  if (S.view === 'order') {
+  if (S.view === 'order') return go('cart');
+  if (S.view === 'cart') {
     S.cards = await api('/cards');
     S.pay ??= { type: 'dine-in', method: 'cash', card: null, tendered: '', ref: '' };
     if (!S.pay.card || S.cards.used.includes(S.pay.card)) S.pay.card = S.cards.suggested;
@@ -136,11 +140,13 @@ async function next() {
     const o = await api('/orders', { method: 'POST', body: {
       items: cartLines().map(({ item_id, flavor, qty }) => ({ item_id, flavor, qty })),
       type: p.type, card: p.card, method: p.method, tendered: p.method === 'cash' ? Number(p.tendered) : due, gcash_ref: p.ref } });
+    S.receipt = { o, lines: cartLines().map((l) => ({ qty: l.qty, name: l.m.name, flavor: l.flavor, price: l.m.price })), p: { ...p } };
     S.cart.clear(); S.pay = null; S.view = 'home'; S.fresh = o.id;
     await load(); render();
-    sheet(`<h2>Card ${o.card} · Order #${String(o.ref).padStart(3, '0')}</h2><p class="sub">${peso(o.total)} paid by ${o.method === 'cash' ? 'cash' : 'GCash'}</p>
+    const done = sheet(`<h2>Card ${o.card} · Order #${String(o.ref).padStart(3, '0')}</h2><p class="sub">${esc(T.paid)} ${peso(o.total)} · ${o.method === 'cash' ? 'cash' : 'GCash'}</p>
       ${o.change > 0 ? `<div class="change"><span class="lbl">Give change</span><span class="amt num">${peso(o.change)}</span></div>` : '<div class="change"><span class="lbl">No change due</span></div>'}
-      <button class="btn" data-close>Next order</button>`, null, 'is-done');
+      <button class="btn alt" data-receipt>${esc(T.viewReceipt)}</button><button class="btn" data-close>${esc(T.nextOrder)}</button>`, null, 'is-done');
+    done.querySelector('[data-receipt]').addEventListener('click', receiptSheet);
   } finally { S.locked = false; }
 }
 
@@ -187,7 +193,7 @@ function tile(m, star) {
   const stepper = q > 0 && !m.flavored ? `<div class="step"><button data-dec="${m.id}" aria-label="Remove one ${esc(m.name)}">−</button><span class="v num${m.id === S.bumped ? ' is-bump' : ''}">${q}</span><button class="p" data-inc="${m.id}" aria-label="Add one ${esc(m.name)}">+</button></div>` : '';
   return `<div class="tile ${q ? 'sel' : ''} ${m.available ? '' : 'off'}" role="button" tabindex="0" data-tile="${m.id}" aria-label="${esc(m.name)} ${peso(m.price)}">
     ${q ? `<span class="q num${m.id === S.bumped ? ' is-bump' : ''}">${q}</span>` : ''}${star && !q ? '<span class="star" aria-hidden="true">★</span>' : ''}
-    <span class="nm">${esc(m.name)}</span><span class="pr num">${peso(m.price)}${m.flavored ? ' · pick flavor' : ''}</span>${stepper}</div>`;
+    <span class="tthumb">${art(m.category)}</span><span class="nm">${esc(m.name)}</span><span class="pr num">${peso(m.price)}${m.flavored ? ' · pick flavor' : ''}</span>${stepper}</div>`;
 }
 function renderOrder() {
   const top = S.top.map((t) => item(t.item_id)).filter((m) => m?.available).slice(0, 4);
@@ -211,6 +217,7 @@ function refreshMain() {
 }
 $('#main').addEventListener('click', guard(async (e) => {
   const t = e.target;
+  if (S.view === 'cart') return cartClick(t);
   if (t.closest('[data-charge]')) { if (count()) { S.view = 'order'; await next(); } return; }
   const cat = t.closest('[data-cat]')?.dataset.cat;
   if (cat) { S.cat = cat; renderOrder(); $('#main').querySelectorAll('.grid')[1]?.classList.add('is-swap'); return; }
@@ -266,6 +273,85 @@ function flavorSheet(m) {
     const fi = e.target.closest('[data-fi]')?.dataset.fi, fd = e.target.closest('[data-fd]')?.dataset.fd;
     if (fi || fd) { hot = fi ?? fd; bump(m.id, hot, fi ? 1 : -1); s.querySelector('.sheet').innerHTML = body(); hot = null; }
   });
+}
+
+/* ---------- cart ---------- */
+const lineLabel = (l) => `${esc(l.m.name)}${l.flavor ? ` · ${esc(l.flavor)}` : ''}`;
+function renderCart() {
+  const lines = cartLines(), c = count();
+  $('#main').innerHTML = `<div class="panel-head"><h1>${esc(T.cartTitle)}</h1></div>` + (!lines.length
+    ? `<div class="empty"><b>${esc(T.cartEmpty)}</b><button class="btn alt" data-cartback>Back</button></div>`
+    : `<div class="cart">${lines.map((l) => { const k = key(l.item_id, l.flavor), nm = lineLabel(l);
+      return `<div class="crow" data-key="${esc(k)}"><div class="crow-del" aria-hidden="true"><button class="crow-delbtn" data-rm="${esc(k)}" aria-label="${esc(T.remove)} ${nm}" tabindex="-1">${I.trash}</button></div>
+        <div class="crow-fg"><span class="thumb">${art(l.m.category)}</span><div class="cinfo"><b class="cnm">${esc(l.m.name)}</b>${l.flavor ? `<span class="cfl muted">${esc(l.flavor)}</span>` : ''}<span class="cpr num">${peso(l.m.price)}</span></div>
+        <div class="step"><button data-dec="${esc(k)}" aria-label="Remove one ${nm}">−</button><span class="v num${k === S.bumpedKey ? ' is-bump' : ''}">${l.qty}</span><button class="p" data-inc="${esc(k)}" aria-label="Add one ${nm}">+</button></div>
+        <b class="clt num">${peso(l.m.price * l.qty)}</b>
+        <button class="crow-x" data-rm="${esc(k)}" aria-label="${esc(T.remove)} ${nm}">${I.x}</button></div></div>`; }).join('')}</div>
+      <div class="review"><div><span>${esc(T.items(c))}</span><b class="num">${peso(total())}</b></div></div>`);
+  S.bumpedKey = null;
+}
+async function removeLine(k) {
+  const qty = S.cart.get(k);
+  if (qty == null) return;
+  $('#main').querySelector(`.crow[data-key="${CSS.escape(k)}"]`)?.classList.add('is-removing');
+  await wait(calm.matches ? 0 : 200);
+  S.cart.delete(k);
+  if (S.view === 'cart') { renderCart(); renderBar(); }
+  undoToast(T.removed, () => { S.cart.set(k, qty); if (S.view === 'cart') { renderCart(); renderBar(); } });
+}
+let swiped = 0;
+async function cartClick(t) {
+  if (Date.now() - swiped < 60) return;
+  const rm = t.closest('[data-rm]')?.dataset.rm;
+  $('#main').querySelectorAll('.crow.is-open').forEach((r) => r.classList.remove('is-open'));
+  if (rm) return removeLine(rm);
+  if (t.closest('[data-cartback]')) return go('order');
+  const inc = t.closest('[data-inc]')?.dataset.inc, dec = t.closest('[data-dec]')?.dataset.dec, k = inc ?? dec;
+  if (k == null) return;
+  const [id, fl] = k.split('|');
+  if (dec != null && S.cart.get(k) === 1) return removeLine(k);
+  S.bumpedKey = k; bump(Number(id), fl || undefined, inc != null ? 1 : -1);
+  const st = $('#main').scrollTop; renderCart(); $('#main').scrollTop = st; renderBar();
+}
+let sw = null;
+$('#main').addEventListener('pointerdown', (e) => {
+  const fg = e.target.closest('.crow-fg');
+  if (!fg || e.target.closest('button')) return;
+  const row = fg.closest('.crow');
+  sw = { fg, row, x0: e.clientX, y0: e.clientY, open: row.classList.contains('is-open'), dx: 0, on: false };
+});
+document.addEventListener('pointermove', (e) => {
+  if (!sw) return;
+  const dx = e.clientX - sw.x0;
+  if (!sw.on) {
+    if (Math.abs(dx) < 8) return;
+    if (Math.abs(e.clientY - sw.y0) > Math.abs(dx)) { sw = null; return; }
+    sw.on = true; sw.fg.classList.add('is-swiping'); sw.fg.setPointerCapture?.(e.pointerId);
+    $('#main').querySelectorAll('.crow.is-open').forEach((r) => r !== sw.row && r.classList.remove('is-open'));
+  }
+  const raw = Math.min(0, dx + (sw.open ? -72 : 0));
+  sw.dx = raw < -72 ? Math.max(-88, -72 + (raw + 72) * 0.2) : raw; // rubber-band past the trash button instead of exposing a gap
+  sw.fg.style.transform = `translateX(${sw.dx}px)`;
+});
+const swipeEnd = () => {
+  if (!sw) return;
+  if (sw.on) { sw.row.classList.toggle('is-open', sw.dx <= -72); sw.fg.classList.remove('is-swiping'); sw.fg.style.transform = ''; swiped = Date.now(); }
+  sw = null;
+};
+document.addEventListener('pointerup', swipeEnd);
+document.addEventListener('pointercancel', swipeEnd);
+
+/* ---------- receipt (view only) ---------- */
+function receiptSheet() {
+  const r = S.receipt; if (!r) return;
+  const { o, lines, p } = r, gc = o.method !== 'cash';
+  sheet(`<h2>${esc(T.receiptTitle)}</h2><div class="receipt"><b class="rc-shop">${esc(S.settings.gcash_name || 'David Wings and Cafe')}</b>
+    <div class="rc-meta muted">Order #${String(o.ref).padStart(3, '0')} · Card ${o.card}<br>${new Date(o.created_at ?? Date.now()).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+    ${lines.map((l) => `<div class="rc-line"><span>${l.qty}× ${esc(l.name)}${l.flavor ? ` · ${esc(l.flavor)}` : ''}</span><b class="num">${peso(l.qty * l.price)}</b></div>`).join('')}
+    <div class="rc-line rc-total"><span>Total</span><b class="num">${peso(o.total)}</b></div>
+    ${gc ? `<div class="rc-line"><span>GCash ref</span><b class="num">${esc(p.ref || '—')}</b></div>`
+      : `<div class="rc-line"><span>Cash</span><b class="num">${peso(o.tendered ?? p.tendered)}</b></div><div class="rc-line"><span>Change</span><b class="num">${peso(o.change ?? 0)}</b></div>`}
+    <p class="rc-foot muted">${esc(T.thanks)}</p></div><button class="btn" data-close>${esc(T.nextOrder)}</button>`);
 }
 
 /* ---------- pay ---------- */
@@ -536,6 +622,7 @@ async function render() {
   renderBar(); renderQueue();
   const v = S.view === 'home' && landscape() ? 'order' : S.view;
   if (v === 'order') renderOrder();
+  else if (v === 'cart') renderCart();
   else if (v === 'pay') renderPay();
   else if (v === 'ledger') await renderLedger().catch((e) => toast(e.message, true));
   else if (v === 'settings') renderSettings();

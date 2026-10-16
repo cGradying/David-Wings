@@ -86,3 +86,16 @@ After the demo, delete the demo orders or restore from a clean backup so real op
 - [ ] First week: check in at the end of each day. Review over/short, voids and their reasons, and any "Amended" days. Note menu or flow problems.
 - [ ] End of week one: send the CSV export, review the numbers with the founder, adjust the menu, and decide on a PIN, receipt printer or remote view.
 - [ ] Keep one spare copy of the APK and the latest backup file off the tablet.
+
+## Taglish tone (suggestions)
+
+Customer-facing words and pitch lines can mix Tagalog and English the way shop owners and customers talk. These are suggestions to review with the founder, not final copy.
+
+- "Sulit!" (good value)
+- "Salamat po!" (thank you)
+- "Ano po ang flavor?" (what flavor?)
+- "Dine-in po o take-out?" (dine in or take out?)
+- "Ito na po ang sukli ninyo." (here is your change)
+- "Kunin na po ang order, Card #7." (please collect your order)
+- "Kuya/Ate, subukan natin sa phone mo, 2 minuto lang." (let's try it on your phone, 2 minutes)
+- "Walang internet? Okay lang, gumagana pa rin." (no internet? still works)

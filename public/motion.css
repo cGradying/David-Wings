@@ -7,11 +7,11 @@
 }
 
 /* 1. press */
-.tile, .btn, .nbtn, .key, .card, .step button, .seg button, .quick button, .tab, .charge, .donebtn {
+.tile, .btn, .nbtn, .key, .card, .step button, .seg button, .quick button, .tab, .charge, .donebtn, .checkout {
   transition: transform 120ms var(--m-out);
 }
 .tile:active, .btn:active, .nbtn:active, .key:active, .card:active, .step button:active,
-.seg button:active, .quick button:active, .tab:active, .charge:active, .donebtn:active {
+.seg button:active, .quick button:active, .tab:active, .charge:active, .donebtn:active, .checkout:active {
   transform: scale(.96);
   transition-duration: 80ms;
 }
@@ -58,6 +58,21 @@
 
 /* 11. switch thumb */
 .switch::after { transition: transform 160ms var(--m-out); }
+
+/* cart + receipt */
+@keyframes m-row { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+.crow { animation: m-row 220ms var(--m-out) backwards; }
+.crow:nth-child(2) { animation-delay: 30ms; } .crow:nth-child(3) { animation-delay: 60ms; }
+.crow:nth-child(n+4) { animation-delay: 60ms; }
+.crow-fg { transition: transform 180ms var(--m-out); }
+.crow-fg.is-swiping { transition: none; }
+.crow { transition: transform 200ms var(--m-in), opacity 200ms var(--m-in); }
+.crow.is-removing { opacity: 0; transform: translateX(-24px); }
+.crow-delbtn, .crow-x { transition: transform 120ms var(--m-out); }
+.crow-delbtn:active, .crow-x:active { transform: scale(.96); }
+.receipt-sheet, .sheet .receipt { animation: m-up 220ms var(--m-out); }
+@keyframes m-draw { from { stroke-dashoffset: 30; } to { stroke-dashoffset: 0; } }
+.paid-check path, .paid-check polyline { stroke-dasharray: 30; animation: m-draw 240ms var(--m-out) 60ms backwards; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

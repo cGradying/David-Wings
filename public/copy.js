@@ -1,0 +1,20 @@
+// Taglish UI copy. Money/product labels stay English. See docs/research/taglish-notes.md
+export const T = {
+  checkout: 'Checkout',
+  cartTitle: 'Order ni Kuya/Ate',
+  cartEmpty: 'Wala pang order',
+  removed: 'Tinanggal',
+  undo: 'Undo',
+  remove: 'Remove',
+  paid: 'Bayad na!',
+  viewReceipt: 'Tingnan receipt',
+  receiptTitle: 'Receipt',
+  thanks: 'Salamat po!',
+  nextOrder: 'Next order',
+  items: (n) => `${n} item${n === 1 ? '' : 's'}`,
+  queueEmpty: 'Walang pending',
+  backupDone: 'Naka-save na!',
+  tapAgain: 'Tap ulit',
+  bestSeller: 'Best seller',
+  chargeBtn: 'Singilin',
+};
